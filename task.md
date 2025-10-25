@@ -21,3 +21,8 @@ Task
 3. calculate metrics, use customized header that help our servers to calculate. (thought) Client may also need to receive echo for RTT
 
 4. setup network real-world simulation
+
+Notes:
+quic assemble, so hard to calculate actual packets drop
+header
+| sequenceNumber (16 bits) | len (16 bits) | time (32 bits) | 
