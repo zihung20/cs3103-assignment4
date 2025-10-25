@@ -18,12 +18,12 @@ class GameClient:
         self.quic.send_datagram_frame(data)
         self.conn.transmit()
 
-async def receive_user_input(conn:QuicConnectionProtocol):
+async def receive_user_input()->str:
     loop = asyncio.get_running_loop()
     while True:
         msg = await loop.run_in_executor(None, input, "You: ")
         if msg.lower() in {"quit", "exit"}:
-            break
+            return ""
         
         return msg
 
@@ -37,7 +37,7 @@ async def main():
         gc = GameClient(conn)
 
         while True:
-            user_input = await receive_user_input(conn)
+            user_input = await receive_user_input()
             if not user_input:
                 break
             elif user_input.startswith("R"):
