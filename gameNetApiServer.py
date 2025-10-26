@@ -1,4 +1,4 @@
-import asyncio, struct, time
+import asyncio, struct, time, argparse
 from aioquic.asyncio import serve
 from aioquic.asyncio.protocol import QuicConnectionProtocol
 from aioquic.quic.configuration import QuicConfiguration
@@ -35,12 +35,17 @@ class GameServer(QuicConnectionProtocol):
                 title = "datagram"            
             print(f"[{title}] {metadata} {payload.decode()}")
 
+def parse_args():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--host", default="server")
+    ap.add_argument("--port", type=int, default="4433")
+    return ap.parse_args()
 
 async def main():
-
     cfg = QuicConfiguration(is_client=False, alpn_protocols=["echo"], max_datagram_frame_size=65536)
     cfg.load_cert_chain("cert.pem", "key.pem")
-    await serve(HOST, PORT, configuration=cfg, create_protocol=GameServer)
+    args = parse_args()
+    await serve(args.host, args.port, configuration=cfg, create_protocol=GameServer)
     await asyncio.get_running_loop().create_future()
 
 asyncio.run(main())

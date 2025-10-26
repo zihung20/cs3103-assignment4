@@ -1,0 +1,34 @@
+services:
+  receiver:
+    build: .
+    image: aioquic-demo
+    networks: [quicnet]
+    command: ["python", "gameNetApiServer.py", "--host", "0.0.0.0", "--port", "4433"]
+
+  sender:
+    image: aioquic-demo
+    depends_on: [receiver]
+    networks: [quicnet]
+    stdin_open: true
+    tty: true
+    command: ["python", "gameNetApiClient.py", "--host", "receiver", "--port", "4433"]
+
+  # Interactive REPL client with shaping (latency/loss/jitter/bw)
+  sender-slow:
+    image: aioquic-demo
+    depends_on: [receiver]
+    networks: [quicnet]
+    stdin_open: true
+    tty: true
+    cap_add: ["NET_ADMIN"]   # allow tc
+    command:
+      - bash
+      - -lc
+      - >
+        tc qdisc add dev eth0 root netem delay 120ms 40ms loss 50% rate 8mbit ;
+        python gameNetApiClient.py --host receiver --port 4433 ;
+        tc qdisc del dev eth0 root || true
+
+networks:
+  quicnet:
+    driver: bridge

@@ -24,3 +24,7 @@ out/
 # IDE project settings
 .vscode/
 .idea/
+
+# Personal files
+test.py
+AHTP-Assignment4-miniProject.pdf

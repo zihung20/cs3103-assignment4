@@ -1,4 +1,4 @@
-import asyncio, struct, time, random
+import asyncio, struct, time, random, argparse, os
 from aioquic.asyncio.client import connect
 from aioquic.quic.configuration import QuicConfiguration
 from aioquic.asyncio import QuicConnectionProtocol
@@ -43,12 +43,19 @@ async def receive_user_input()->str:
         
         return msg
 
+def parse_args():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--host", default="server")
+    ap.add_argument("--port", type=int, default="4433")
+    return ap.parse_args()
+
 async def main():
     cfg = QuicConfiguration(is_client=True, alpn_protocols=["echo"])
     cfg.verify_mode = False
     cfg.max_datagram_frame_size = 65536
+    args = parse_args()
 
-    async with connect(HOST, PORT, configuration=cfg) as conn:
+    async with connect(args.host, args.port, configuration=cfg) as conn:
         await conn.wait_connected()
         gc = GameClient(conn)
 
@@ -56,7 +63,7 @@ async def main():
             user_input = await receive_user_input()
             if not user_input:
                 break
-            gc.send_data(user_input.encode(), random.choice([True, False]))
+            gc.send_data(user_input.encode(), False)
 
         await asyncio.sleep(0.5)
 
