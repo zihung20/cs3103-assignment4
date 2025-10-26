@@ -24,5 +24,8 @@ Task
 
 Notes:
 quic assemble, so hard to calculate actual packets drop
+packet: fragmented by API (for packet ratio)
+seq num: indicating last packet
+
 header
 | sequenceNumber (16 bits) | len (16 bits) | time (32 bits) | 
