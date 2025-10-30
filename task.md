@@ -29,3 +29,6 @@ seq num: indicating last packet
 
 header
 | sequenceNumber (16 bits) | len (16 bits) | time (32 bits) | 
+
+sender: channel type, seq, flags, checksum, (time, len)
+receiver: ack, checksum, time, 
