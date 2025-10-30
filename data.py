@@ -31,7 +31,7 @@ mock_client_msgs = [
      "payload": {"device": "gyro", "x": 0.12, "y": 0.42, "z": -0.08, "ts": time.time()}},
 
     {"seq": 10, "service": "chat_reaction", "reliability": "unreliable",
-     "payload": {"from": "bob", "to": "alice", "emoji": "👍", "msg_id": 873}},
+     "payload": {"from": "bob", "to": "alice", "msg_id": 873}},
 ]
 
 mock_server_responses = [
