@@ -1,14 +1,15 @@
+from contextlib import asynccontextmanager
 from aioquic.asyncio.client import connect
 from aioquic.quic.configuration import QuicConfiguration
 from aioquic.asyncio.protocol import QuicConnectionProtocol
 import utils
 
 class GameSender:
-    def __init__(self, conn:QuicConnectionProtocol):
+    def __init__(self, conn:QuicConnectionProtocol, cm=None):
         self.conn = conn
         self.quic = conn._quic
         self.reliable_sid = self.quic.get_next_available_stream_id()
-        self._cm = None  # placeholder for async context manager
+        self._cm = cm
 
     def send_data(self, seq_no, data, is_reliable=False):
         data_bytes = bytes(data)
@@ -27,26 +28,25 @@ class GameSender:
         self.quic.send_datagram_frame(df)
         self.conn.transmit()
 
-    async def close(self):
-        """Close the QUIC connection (exit the connect() context)."""
-        if self._cm is not None:
-            try:
-                await self._cm.__aexit__(None, None, None)
-            finally:
-                self._cm = None
 
-    # static function to create an instance asynchronously
-    @classmethod
-    async def create(cls, host, port):
-        cfg = QuicConfiguration(
-            is_client=True,
-            alpn_protocols=["game"],
-            verify_mode=False,
-            max_datagram_frame_size=65536
-        )
-        cm = connect(host, port, configuration=cfg)   # async context manager
-        conn = await cm.__aenter__()                  # enter and get protocol
-        await conn.wait_connected()
-        obj = cls(conn)
-        obj._cm = cm                                   # keep cm so close() can exit it
-        return obj
+# create the quic sender as an async context manager
+@asynccontextmanager
+async def create_sender(host, port):
+    cfg = QuicConfiguration(
+        is_client=True,
+        alpn_protocols=["game"],
+        verify_mode=False,
+        max_datagram_frame_size=65536
+    )
+
+    cm = connect(host, port, configuration=cfg)
+    conn = await cm.__aenter__()
+    await conn.wait_connected()
+
+    sender = GameSender(conn, cm)
+
+    try:
+        yield sender
+    finally:
+        # ensure clean shutdown
+        await cm.__aexit__(None, None, None)
