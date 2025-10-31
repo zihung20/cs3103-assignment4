@@ -1,70 +1,107 @@
-import asyncio
-from aioquic.asyncio import server
-from aioquic.asyncio.protocol import QuicConnectionProtocol
-from aioquic.quic.configuration import QuicConfiguration
-from aioquic.quic.events import StreamDataReceived, DatagramFrameReceived
-from config import TIME_LIMIT_MS, METADATA_TIMESTAMP_MS, METADATA_SEQ_NO
-import utils
+from socket import *
+from utils import parse_packet, check_sender_packet, generate_ack, get_time_passed
+from config import SENDER_SEQ, SENDER_CHANNEL, SENDER_FLAGS, SENDER_TIMESTAMP
+import time
 
-class GameReceiver(QuicConnectionProtocol):
-    def __init__(self, *args, process_fn=None, **kwargs):
-        super().__init__(*args, **kwargs)
+class GameReceiver():
+    def __init__(self, host: str, server_port:int):
+        self.host = host
+        self.server_port = server_port
+        self.expect_sequence = 0
+        self.serverSocket = socket(AF_INET, SOCK_DGRAM)
+        self.serverSocket.bind((host, self.server_port))
+        # metrics
         self.jitter_ms = 0.0
         self.prev_time_passed_ms = 0.0
         self.total_bytes = 0
         self.total_time_ms = 0.0
-        self.process_fn = process_fn
-        
-    def quic_event_received(self, event):
-        if isinstance(event, (StreamDataReceived, DatagramFrameReceived)):
-            self.process_payload(event)
+        self.buffer = {}
+        print(f"Server is listening on port {self.server_port}...")
     
-    def process_payload(self, event: StreamDataReceived | DatagramFrameReceived):
-        metadata, payload = utils.parse_packet(event.data)
-        time_passed = utils.get_time_passed(metadata[METADATA_TIMESTAMP_MS])
-        
-        if time_passed > TIME_LIMIT_MS:
-            print(f"[WARNING] Packet {metadata[METADATA_SEQ_NO]} exceeded time limit of {TIME_LIMIT_MS} ms (actual: {time_passed} ms)")
-            return 
-        
-        throughput = self.calc_throughput(len(payload), time_passed)
-        jitter = self.calc_jitter(time_passed)
-
-        if isinstance(event, StreamDataReceived):
-            title = f"stream {event.stream_id}"
+    def check(self, metadata:tuple, payload: bytes):
+        if not check_sender_packet(metadata, payload):
+            print(f"corrupt packet {metadata}, discard")
+            return False
         else:
-            title = "datagram"
+            sequence = metadata[SENDER_SEQ]
+            if sequence != self.expect_sequence:
+                print(f"out of order packet {metadata}, expect {self.expect_sequence}, discard")
+                return False
+            self.expect_sequence += 1
+            return True
         
-        print(f"[{title}] {metadata}")
-        print(f"    Latency: {time_passed} ms")
-        print(f"    Throughput: {throughput:.2f} bytes/s")
-        print(f"    Jitter: {jitter:.2f} ms\n")
+    def send_ack(self, clientAddress:tuple, ack_sequence:int) -> None:
+        ack_packet = generate_ack(ack_sequence)
+        self.serverSocket.sendto(ack_packet, clientAddress)
 
-        if self.process_fn:
-            self.process_fn(metadata, payload)
+    def receive_data(self, timeout_ms:int=1000, idle_ms:int=10000) -> None:
+        deadline = time.time() + timeout_ms / 1000.0
+        self.serverSocket.settimeout(idle_ms / 1000)
 
-    def calc_throughput(self, payload_size, time_passed_ms):
+        while time.time() < deadline:
+            try:
+                packet, clientAddress = self.serverSocket.recvfrom(2048)
+            except timeout:
+                print("Socket timed out, ending reception.")
+                break
+            metadata, payload = parse_packet(packet)
+            if not self.check(metadata, payload):
+                self.send_ack(clientAddress, self.expect_sequence)
+            else:
+                if metadata[SENDER_SEQ] not in self.buffer:
+                    print(f"Received something {metadata}")
+                    self.buffer[metadata[SENDER_SEQ]] = (metadata, payload)
+
+                if self.is_last_packet(metadata):
+                    data = self.reconstruct_packets()
+                    print(f"Received last packet \n{data.decode()}")
+                    self.send_ack(clientAddress, self.expect_sequence)
+                    break
+
+                self.print_stats(metadata, payload)
+                self.send_ack(clientAddress, self.expect_sequence)
+
+        # After timeout, reconstruct whatever packets we have
+        if self.buffer: 
+            data = self.reconstruct_packets()
+            print(f"Timeout reached. Reconstructed data:\n{data.decode()}")
+
+    def reconstruct_packets(self) -> bytes:
+        data = b""
+        for seq in sorted(self.buffer.keys()):
+            metadata, payload = self.buffer[seq]
+            data += payload
+        return data
+
+    def is_last_packet(self, metadata:tuple) -> bool:
+        """
+        return true if we received the last packet, and the previous other packets has been received too
+        """
+        return metadata[SENDER_FLAGS] == 1 and metadata[SENDER_SEQ] == self.expect_sequence - 1
+    
+    def print_stats(self, metadata:tuple, payload:bytes) -> None:
+        channel_title = "Reliable" if metadata[SENDER_CHANNEL] == 1 else "Unreliable"
+        time_passed_ms = get_time_passed(metadata[SENDER_TIMESTAMP])
+        payload_size = len(payload)
+        throughput = self.calc_throughput(payload_size, time_passed_ms)
+        jitter = self.calc_jitter(time_passed_ms)
+        
+        print(f"[{channel_title}]\t{metadata}")
+        print(f"\tLatency: {time_passed_ms} ms")
+        print(f"\tThroughput: {throughput:.2f} bytes/s")
+        print(f"\tJitter: {jitter:.2f} ms\n")
+    
+    def calc_throughput(self, payload_size:int, time_passed_ms:int):
         self.total_bytes += payload_size
         self.total_time_ms += time_passed_ms
 
-        return self.total_bytes / max(self.total_time_ms * 1000, 1e-6)  # in bytes per seconds
+        return self.total_bytes / max(self.total_time_ms / 1000, 1e-6)  # in bytes per seconds
     
-    def calc_jitter(self, time_passed_ms):
+    def calc_jitter(self, time_passed_ms:int):
         # Using RFC 3550 formula, J = J + (|D(i-1,i)| - J)/16, where D is the difference in time passed between packets
         diff = abs(time_passed_ms - self.prev_time_passed_ms)
         self.jitter_ms += (diff - self.jitter_ms) / 16
         self.prev_time_passed_ms = time_passed_ms
 
         return self.jitter_ms
-    
-    @classmethod
-    async def create(cls, host, port, process_fn=None):
-        cfg = QuicConfiguration(is_client=False, alpn_protocols=["game"], max_datagram_frame_size=65536)
-        cfg.load_cert_chain("cert.pem", "key.pem")
-        await server.serve(
-            host, 
-            port, 
-            configuration=cfg, 
-            create_protocol=lambda *args, **kwargs: cls(*args, process_fn=process_fn, **kwargs)
-        )
-        await asyncio.get_running_loop().create_future()
+

@@ -5,10 +5,8 @@ services:
     networks: [quicnet]
     command: ["python", "receiverExample.py"]
     environment:
-      - HOST=0.0.0.0
+      - HOST=receiver
       - PORT=4433
-    volumes:
-      - .:/app
 
   sender:
     image: game-net-api
@@ -20,8 +18,6 @@ services:
     environment:
       - HOST=receiver
       - PORT=4433
-    volumes:
-      - .:/app
 
   # Interactive REPL client with shaping (latency/loss/jitter/bw)
   sender-slow:
@@ -34,18 +30,13 @@ services:
     command:
       - bash
       - -lc
-      - |
-        tc qdisc replace dev eth0 root netem \
-          delay 100ms 10ms distribution normal \
-          loss 1% \
-          reorder 0.1% 25%;
+      - >
+        tc qdisc add dev eth0 root netem delay 120ms 40ms loss 50% rate 8mbit ;
         python senderExample.py ;
         tc qdisc del dev eth0 root || true
     environment:
       - HOST=receiver
       - PORT=4433
-    volumes:
-      - .:/app
 
 networks:
   quicnet:

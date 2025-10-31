@@ -2,6 +2,7 @@ FROM python:3.13-slim
 
 WORKDIR /app
 COPY . .
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Install iproute2 so we can run `tc` inside the container later
 RUN apt-get update && apt-get install -y --no-install-recommends \

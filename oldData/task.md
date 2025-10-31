@@ -27,9 +27,8 @@ quic assemble, so hard to calculate actual packets drop
 packet: fragmented by API (for packet ratio)
 seq num: indicating last packet
 
-sender: channel 1 is reliable, 0 is unreliable
-channel (8 bits) | flags(8 bits) | seq (16 bits) | len(16 bits) |
-checksum(32 bits) | timestamp(32 bits)
+header
+| sequenceNumber (16 bits) | len (16 bits) | time (32 bits) | 
 
-receiver:
-ack sequence (16 bits) | checksum (32 bits) | timestamp (32 bits)
+sender: channel type, seq, flags, checksum, (time, len)
+receiver: ack, checksum, time, 

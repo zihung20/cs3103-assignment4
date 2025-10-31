@@ -1,17 +1,16 @@
-import random, time, asyncio
-from gameNetApiSender import create_sender
-from config import HOST, PORT
+import socket, time, asyncio, os
+from gameNetApiSender import GameSender
 from data import mock_client_msgs
+from config import PORT
+
+HOST = socket.gethostbyname("receiver")
 
 async def main():
-    async with create_sender(HOST, PORT) as gs:
-        random.seed(time.time())   
-        seq_start = random.randint(0, 2048)
-
-        for i in range(100):
-            data = str(mock_client_msgs[random.randint(0, len(mock_client_msgs)-1)])
-            gs.send_data(seq_start + i, data.encode(), random.choice([True, False]))
-
-        await asyncio.sleep(0.5)
+    temp = GameSender(HOST, PORT)
+    with open("longtext.txt", "r") as f:
+        text = f.read()
+        for i in range(1):
+            temp.send_data(text.encode(), True)
+            await asyncio.sleep(0.01)
 
 asyncio.run(main())
