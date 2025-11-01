@@ -15,7 +15,6 @@ class GameReceiver():
         self.prev_time_passed_ms = 0.0
         self.total_bytes = 0
         self.total_time_ms = 0.0
-        self.buffer = {}
         print(f"Server is listening on port {self.server_port}...")
     
     def check(self, metadata:tuple, payload: bytes):
@@ -30,46 +29,51 @@ class GameReceiver():
             self.expect_sequence += 1
             return True
         
-    def send_ack(self, clientAddress:tuple, ack_sequence:int) -> None:
-        ack_packet = generate_ack(ack_sequence)
+    def send_ack(self, clientAddress:tuple, ack_sequence:int, to_stop:bool=False) -> None:
+        ack_packet = generate_ack(ack_sequence, to_stop)
         self.serverSocket.sendto(ack_packet, clientAddress)
 
-    def receive_data(self, timeout_ms:int=1000, idle_ms:int=10000) -> None:
+    def receive_data(self, timeout_ms:int=1000, idle_ms:int=10000) -> bytes|None:
         deadline = time.time() + timeout_ms / 1000.0
-        self.serverSocket.settimeout(idle_ms / 1000)
+        buffer = {}
 
         while time.time() < deadline:
+            time_remaining = deadline - time.time()
+            self.serverSocket.settimeout(min(time_remaining, idle_ms / 1000))
+
             try:
                 packet, clientAddress = self.serverSocket.recvfrom(2048)
             except timeout:
-                print("Socket timed out, ending reception.")
                 break
+
             metadata, payload = parse_packet(packet)
             if not self.check(metadata, payload):
                 self.send_ack(clientAddress, self.expect_sequence)
             else:
-                if metadata[SENDER_SEQ] not in self.buffer:
+                if metadata[SENDER_SEQ] not in buffer:
                     print(f"Received something {metadata}")
-                    self.buffer[metadata[SENDER_SEQ]] = (metadata, payload)
+                    buffer[metadata[SENDER_SEQ]] = (metadata, payload)
 
                 if self.is_last_packet(metadata):
-                    data = self.reconstruct_packets()
-                    print(f"Received last packet \n{data.decode()}")
-                    self.send_ack(clientAddress, self.expect_sequence)
+                    print("Received last packet, send back ack")
+                    # self.send_ack(clientAddress, self.expect_sequence, True)
+                    ##maybe cannot immediately break, need to wait for a bit to see if any more packets arrive
                     break
 
                 self.print_stats(metadata, payload)
                 self.send_ack(clientAddress, self.expect_sequence)
 
-        # After timeout, reconstruct whatever packets we have
-        if self.buffer: 
-            data = self.reconstruct_packets()
-            print(f"Timeout reached. Reconstructed data:\n{data.decode()}")
+        # After timeout or received last packet, reconstruct whatever packets we have
+        if buffer:
+            print("reconstruct packet of what we have")
+            data = self.reconstruct_packets(buffer)
+            self.send_ack(clientAddress, self.expect_sequence, True)
+            return data
 
-    def reconstruct_packets(self) -> bytes:
+    def reconstruct_packets(self, buffer:dict) -> bytes:
         data = b""
-        for seq in sorted(self.buffer.keys()):
-            metadata, payload = self.buffer[seq]
+        for seq in sorted(buffer.keys()):
+            _, payload = buffer[seq]
             data += payload
         return data
 

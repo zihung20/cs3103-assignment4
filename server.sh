@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+exec > >(tee run.log) 2>&1
 
 compose="docker compose"
 

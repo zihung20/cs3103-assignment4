@@ -1,9 +1,9 @@
 import time, struct, zlib
-from config import FOUR_BYTES_MASK, TWO_BYTES_MASK, SENDER_HEADER_FORMAT, RECEIVER_ACK_FORMAT, \
-    PAYLOAD_SIZE_BYTES, ACK_CHECKSUM, ACK_SEQUENCE, ACK_TIMESTAMP, SENDER_CHANNEL, SENDER_FLAGS, SENDER_SEQ, \
+from config import FOUR_BYTES_MASK, TWO_BYTES_MASK, ONE_BYTES_MASK, SENDER_HEADER_FORMAT, RECEIVER_ACK_FORMAT, \
+    PAYLOAD_SIZE_BYTES, ACK_FLAGS, ACK_CHECKSUM, ACK_SEQUENCE, ACK_TIMESTAMP, SENDER_CHANNEL, SENDER_FLAGS, SENDER_SEQ, \
         SENDER_LENGTH, SENDER_TIMESTAMP
 
-# Utility functions for packet handling, mostly about packet related operations
+# Utility functions for packet constructing and parsing
 def get_current_timestamp():
     return int(time.monotonic_ns() // 1_000_000) & FOUR_BYTES_MASK  # in milliseconds, ensure within 4 bytes
 
@@ -63,16 +63,17 @@ def check_sender_packet(metadata, payload) -> bool:
 
     return received_checksum == computed_checksum
 
-def generate_ack(sequence:int) -> bytes:
-    """ack sequence (16 bits) | checksum (32 bits) | timestamp (32 bits)"""
+def generate_ack(sequence:int, to_stop:bool) -> bytes:
+    """flags (8bit) | ack sequence (16 bits) | checksum (32 bits) | timestamp (32 bits)"""
+    flags = (1 if to_stop else 0) & ONE_BYTES_MASK
     sequence = sequence & TWO_BYTES_MASK
     checksum_val = 0
     timestamp_ms = get_current_timestamp() & FOUR_BYTES_MASK
 
-    temp_ack = struct.pack(RECEIVER_ACK_FORMAT, sequence, checksum_val, timestamp_ms)
+    temp_ack = struct.pack(RECEIVER_ACK_FORMAT, flags, sequence, checksum_val, timestamp_ms)
     checksum_val = checksum(temp_ack)
 
-    final_ack = struct.pack(RECEIVER_ACK_FORMAT, sequence, checksum_val, timestamp_ms)
+    final_ack = struct.pack(RECEIVER_ACK_FORMAT, flags, sequence, checksum_val, timestamp_ms)
     return final_ack
 
 def parse_ack(ack:bytes):
@@ -81,6 +82,6 @@ def parse_ack(ack:bytes):
 
 def check_ack_corrupt(metadata:tuple) -> bool:
     received_checksum = metadata[ACK_CHECKSUM]
-    temp_ack = struct.pack(RECEIVER_ACK_FORMAT, metadata[ACK_SEQUENCE], 0, metadata[ACK_TIMESTAMP])
+    temp_ack = struct.pack(RECEIVER_ACK_FORMAT, metadata[ACK_FLAGS], metadata[ACK_SEQUENCE], 0, metadata[ACK_TIMESTAMP])
     computed_checksum = checksum(temp_ack)
     return received_checksum == computed_checksum

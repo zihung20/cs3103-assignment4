@@ -1,6 +1,6 @@
 from socket import *
 from utils import generate_chunks, parse_ack, check_ack_corrupt, build_sender_packet
-from config import TIME_LIMIT_MS, WINDOW_SIZE, SENDER_RETRY_LIMIT
+from config import TIME_LIMIT_MS, WINDOW_SIZE, SENDER_RETRY_LIMIT, ACK_SEQUENCE, ACK_FLAGS
 import select, time
 
 class GameSender:
@@ -77,18 +77,22 @@ class GameSender:
                 if addr != self.server_address: 
                     print(f"Received ACK from unknown address compared to {self.server_address}:", addr)
                     continue
-                meta = parse_ack(ack_bytes)
-                if not check_ack_corrupt(meta):
-                    print("Received corrupted ACK:", meta)
+                metadata = parse_ack(ack_bytes)
+                if not check_ack_corrupt(metadata):
+                    print("Received corrupted ACK:", metadata)
                     continue
+                elif self.should_stop(metadata, left, right):
+                    print("Received stop signal from receiver, terminating transmission.")
+                    break
 
-                ack_no = meta[0]
+                ack_no = metadata[ACK_SEQUENCE]
                 if ack_no > left:
                     print(f"Received ACK for seq {ack_no}, sliding window")
                     ack_no = min(ack_no, last_seq_exclusive) # defensive programming
                     left = ack_no
                     for seq in list(buffer.keys()):
                         if seq < ack_no: buffer.pop(seq, None)
+                    
                     if left == right: 
                         stop_timer()
                     else:
@@ -108,11 +112,14 @@ class GameSender:
             if param:
                 pkt = build_sender_packet(*param)
                 self.clientSocket.sendto(pkt, self.server_address)
-
-    def check_ack(self, ack:bytes) -> bool:
-        metadata = parse_ack(ack)
-        if not check_ack_corrupt(metadata):
+    
+    def should_stop(self, metadata:tuple, left:int, right:int) -> None:
+        ack_seq_no = metadata[ACK_SEQUENCE]
+        if ack_seq_no < left or ack_seq_no > right:
+            print(f"Received out-of-window ACK {metadata}, ignore")
             return False
-        ack_sequence = metadata[0]
-
-        return ack_sequence == self.seq_no
+    
+        # valid ACK within window, set the seq_no to be it so that further packets are sync
+        self.seq_no = ack_seq_no
+        flags = metadata[ACK_FLAGS]
+        return flags == 1

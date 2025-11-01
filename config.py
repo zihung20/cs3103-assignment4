@@ -21,10 +21,11 @@ SENDER_CHECKSUM     = 4  # 32-bit CRC/checksum
 SENDER_TIMESTAMP    = 5  # 32-bit ms timestamp (send time)
 SENDER_RETRY_LIMIT = 5  # max retry count for reliable packets
 
-RECEIVER_ACK_FORMAT = "!HII"
-ACK_SEQUENCE    = 0  # 16-bit ACK sequence number
-ACK_CHECKSUM    = 1  # 32-bit checksum
-ACK_TIMESTAMP   = 2  # 32-bit ms timestamp (receive/send time)
+RECEIVER_ACK_FORMAT = "!BHII"
+ACK_FLAGS       = 0  # 8-bit ACK flags (1 to inform client to stop, otherwise 0)
+ACK_SEQUENCE    = 1  # 16-bit ACK sequence number
+ACK_CHECKSUM    = 2  # 32-bit checksum
+ACK_TIMESTAMP   = 3  # 32-bit ms timestamp (receive/send time)
 
 PAYLOAD_SIZE_BYTES = 1186
 WINDOW_SIZE = 5
