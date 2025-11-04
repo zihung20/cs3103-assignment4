@@ -34,41 +34,93 @@ class GameReceiver():
         self.serverSocket.sendto(ack_packet, clientAddress)
 
     def receive_data(self, timeout_ms:int=1000, idle_ms:int=10000) -> bytes|None:
-        deadline = time.time() + timeout_ms / 1000.0
         buffer = {}
+        count = 0 # counter for attempts
+        max_attempts = 2
 
-        while time.time() < deadline:
-            time_remaining = deadline - time.time()
-            self.serverSocket.settimeout(min(time_remaining, idle_ms / 1000))
+        last_activity = time.time()
 
-            try:
-                packet, clientAddress = self.serverSocket.recvfrom(2048)
-            except timeout:
-                break
+        last_seq_seen = False
+        last_seq_index = None
+        is_last = False
+        is_reliable = True
+        while True:
+            per_pkt_deadline = time.time() + (timeout_ms / 1000.0)
+            got_something = False
+            clientAddress = None
 
-            metadata, payload = parse_packet(packet)
-            if not self.check(metadata, payload):
-                self.send_ack(clientAddress, self.expect_sequence)
-            else:
-                if metadata[SENDER_SEQ] not in buffer:
-                    print(f"Received something {metadata}")
-                    buffer[metadata[SENDER_SEQ]] = (metadata, payload)
+            while time.time() < per_pkt_deadline:
+                time_remaining = per_pkt_deadline - time.time()
 
-                if self.is_last_packet(metadata):
-                    print("Received last packet, send back ack")
-                    # self.send_ack(clientAddress, self.expect_sequence, True)
-                    ##maybe cannot immediately break, need to wait for a bit to see if any more packets arrive
+                self.serverSocket.settimeout(max(0.0, min(time_remaining, idle_ms / 1000)))
+
+                try:
+                    packet, clientAddress = self.serverSocket.recvfrom(2048)
+                except timeout:
+                    continue # wait for the packet
+
+                got_something = True
+                last_activity = time.time()
+
+                metadata, payload = parse_packet(packet)
+
+                if metadata[SENDER_CHANNEL] == 0:
+                    is_reliable = False
+
+                if not self.check(metadata, payload) and is_reliable:
+                    self.send_ack(clientAddress, self.expect_sequence)
+                else:
+                    if not is_reliable:
+                        max_attempts = 1 # for unreliable channel
+                    if metadata[SENDER_SEQ] not in buffer:
+                        print(f"Received something {metadata}")
+                        buffer[metadata[SENDER_SEQ]] = (metadata, payload)
+
+                    if self.is_last_packet(metadata):
+                        print("Received last packet, send back ack")
+                        last_seq_seen = True
+                        last_seq_index = metadata[SENDER_SEQ]
+                        is_last = True
+                        # self.send_ack(clientAddress, self.expect_sequence, True)
+                        ##maybe cannot immediately break, need to wait for a bit to see if any more packets arrive
+
+                    self.print_stats(metadata, payload)
+                    if not is_last and is_reliable:
+                        # prevent send the last packet ack twice
+                        self.send_ack(clientAddress, self.expect_sequence)
+
+                    count = 0
                     break
 
-                self.print_stats(metadata, payload)
-                self.send_ack(clientAddress, self.expect_sequence)
+            if not got_something:
+                count += 1
+                
+                if count >= max_attempts:
+                    print(f"Failed after one retransmission for  seq {self.expect_sequence}, skipping it.")
+                    self.expect_sequence += 1
+                    count = 0
+                else:
+                    if clientAddress and not is_reliable:
+                        self.send_ack(clientAddress, self.expect_sequence)
+
+            if last_seq_seen and last_seq_index is not None and self.expect_sequence > last_seq_index:
+                break
+
+            # timeout for receive nothing
+            if (time.time() - last_activity) * 1000 > idle_ms:
+                print("Idle timeout reached")
+                break
 
         # After timeout or received last packet, reconstruct whatever packets we have
         if buffer:
             print("reconstruct packet of what we have")
             data = self.reconstruct_packets(buffer)
-            self.send_ack(clientAddress, self.expect_sequence, True)
+            if clientAddress and is_reliable:
+                self.send_ack(clientAddress, self.expect_sequence, True)
+
             return data
+        
+        return None
 
     def reconstruct_packets(self, buffer:dict) -> bytes:
         data = b""
@@ -108,4 +160,3 @@ class GameReceiver():
         self.prev_time_passed_ms = time_passed_ms
 
         return self.jitter_ms
-
