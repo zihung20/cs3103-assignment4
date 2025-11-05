@@ -9,7 +9,7 @@ def main():
     buffer = []
     
     while True:
-        data = gr.receive_data(TIME_LIMIT_MS)
+        data = gr.receive_data(lambda data: print("Receive the data: ", data), TIME_LIMIT_MS)
         
         if not data:
             print("No more data received, exiting.")

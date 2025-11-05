@@ -32,14 +32,13 @@ class GameReceiver():
         ack_packet = generate_ack(ack_sequence, to_stop)
         self.receiver_socket.sendto(ack_packet, sender_address)
 
-    def receive_data(self, timeout_ms: int = 1000, idle_ms: int = 10000) -> list[bytes] | None:
+    def receive_data(self, callback_fn, timeout_ms: int = 1000, idle_ms: int = 10000) -> list[bytes] | None:
         receive_buffer = GameNetBuffer()
         count = 0
         max_attempts = 5 # initial max attempts, more times allow to receive first packet
 
         last_activity = time.time()
         is_reliable = False
-        sender_address = None
         
         # set idle timeout
         # if exceed idle timeout without receiving any packets, stop receiving
@@ -49,7 +48,6 @@ class GameReceiver():
                 
                 try:
                     packet, addr = self.receiver_socket.recvfrom(2048)
-                    sender_address = addr
                     metadata, payload = parse_packet(packet)
                     self.packets_count += 1
 
@@ -64,6 +62,11 @@ class GameReceiver():
                         max_attempts = 1  # for unreliable channel
                     
                     if self.check(metadata, payload):
+                        next_expect_seq = receive_buffer.get_next_expected_sequence()
+
+                        if not is_reliable or metadata[SENDER_SEQ] == next_expect_seq:
+                            callback_fn(payload)
+                        
                         receive_buffer.add_packet(metadata[SENDER_SEQ], payload)
                     
                     if is_reliable:
