@@ -33,7 +33,7 @@ class GameReceiver():
         self.receiver_socket.sendto(ack_packet, sender_address)
 
     def receive_data(self, callback_fn, timeout_ms: int = 1000, idle_ms: int = 10000) -> list[bytes] | None:
-        receive_buffer = GameNetBuffer()
+        receive_buffer = GameNetBuffer(callback_fn)
         count = 0
         max_attempts = 5 # initial max attempts, more times allow to receive first packet
 
@@ -62,16 +62,16 @@ class GameReceiver():
                         max_attempts = 1  # for unreliable channel
                     
                     if self.check(metadata, payload):
-                        next_expect_seq = receive_buffer.get_next_expected_sequence()
-
-                        if not is_reliable or metadata[SENDER_SEQ] == next_expect_seq:
+                        if not is_reliable:
                             callback_fn(payload)
-                        
-                        receive_buffer.add_packet(metadata[SENDER_SEQ], payload)
-                    
-                    if is_reliable:
-                        next_expect_seq = receive_buffer.get_next_expected_sequence()
-                        self.send_ack(addr, next_expect_seq)
+                        else:
+                            receive_buffer.add_packet(metadata[SENDER_SEQ], payload)
+                            next_expect_seq = receive_buffer.get_next_expected_sequence()
+                            self.send_ack(addr, next_expect_seq)                        
+
+                    if self.is_last_packet(metadata, receive_buffer):
+                        print("Last packet received, stop receiving.")
+                        break
 
                     count = 0
                     last_activity = time.time()
@@ -118,3 +118,9 @@ class GameReceiver():
         self.prev_time_passed_ms = time_passed_ms
 
         return self.jitter_ms
+    
+    def is_last_packet(self, metadata:tuple, receive_buffer:GameNetBuffer) -> bool:
+        """
+        return true if we received the last packet, and the previous other packets has been received too
+        """
+        return metadata[SENDER_FLAGS] == 1 and metadata[SENDER_SEQ] == receive_buffer.get_next_expected_sequence() - 1

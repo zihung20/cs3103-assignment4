@@ -18,7 +18,9 @@ def main():
         "another message to send",
     ]
     data = [d.encode(MESSAGE_ENCODING) for d in data]
-
+    with open("./test/output.txt", "r", encoding=MESSAGE_ENCODING) as f:
+        long_text = f.read().splitlines()
+        data.extend(long_text[i].encode(MESSAGE_ENCODING) for i in range(len(long_text)))
     # for i in range(random.randint(1, len(mock_client_msgs))):
     #     msg = mock_client_msgs[random.randint(0, len(mock_client_msgs) - 1)]
     #     payload_bytes = str(msg).encode('utf-8')
@@ -30,7 +32,7 @@ def main():
     # time.sleep(8)
 
     print("Sending unreliable packets now...")
-    gs.send_data(data, False)
+    gs.send_data(data, True)
 
 # asyncio.run(main())
 main()

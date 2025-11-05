@@ -16,7 +16,7 @@ def main():
             break
 
         for d in data:
-            print(f"Data received using the api: {d.decode(MESSAGE_ENCODING)}")
+            print(f"Data received using the api: \n{d.decode(MESSAGE_ENCODING)}")
             buffer.append(d.decode(MESSAGE_ENCODING))
 
     # with open("received_messages.txt", "w", encoding=MESSAGE_ENCODING) as f:

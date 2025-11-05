@@ -2,7 +2,6 @@ from socket import socket, AF_INET, SOCK_DGRAM, gethostbyname
 from utils import parse_ack, check_ack_corrupt, build_sender_packet, generate_seq_no, get_offset_from_seq
 from config import TIME_LIMIT_MS, WINDOW_SIZE, SENDER_RETRY_LIMIT, ACK_SEQUENCE, ACK_FLAGS
 import select, time
-import random
 
 class GameSender:
     def __init__(self, receiver_host: str, receiver_port: int):
@@ -24,11 +23,10 @@ class GameSender:
         for i, chunk in enumerate(data):
             packet = build_sender_packet(0, i, chunk, False, True)
             self.receiver_socket.sendto(packet, self.receiver_address)
-            time.sleep(0.001)
+            time.sleep(0.01)
 
     def send_reliable_packets(self, data: list[bytes]) -> None:
-        random.seed(time.time())
-        start_seq = random.randint(1, 0xFFFF)  # random initial sequence number
+        start_seq = 0
         left = 0
         right = 0
         sender_timeout_ms = TIME_LIMIT_MS / 20 # random guess
