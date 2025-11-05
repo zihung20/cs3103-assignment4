@@ -1,0 +1,8 @@
+                  min / mean / max 
+jitter        :0.0 / 0.0999 / 0.1661
+throughput    :27000.0 / 258023.0957 / 5000000.0
+latency       :0 / 0.1682 / 1
+
+packets received          :107 
+expected total packets    :107 
+packet delivery ratio     :1.0 

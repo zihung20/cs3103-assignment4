@@ -1,3 +1,5 @@
+import csv
+from pathlib import Path
 import time, struct, zlib
 from config import FOUR_BYTES_MASK, TWO_BYTES_MASK, ONE_BYTES_MASK, SENDER_HEADER_FORMAT, RECEIVER_ACK_FORMAT, \
     ACK_FLAGS, ACK_CHECKSUM, ACK_SEQUENCE, ACK_TIMESTAMP, SENDER_CHANNEL, SENDER_FLAGS, SENDER_SEQ, \
@@ -85,3 +87,49 @@ def check_ack_corrupt(metadata:tuple) -> bool:
     temp_ack = struct.pack(RECEIVER_ACK_FORMAT, metadata[ACK_FLAGS], metadata[ACK_SEQUENCE], 0, metadata[ACK_TIMESTAMP])
     computed_checksum = checksum(temp_ack)
     return received_checksum == computed_checksum
+
+
+def generate_stats(jitters:list, throughputs:list, latency:list, packet_received:list, total_packet:list, time_stamps:list):
+    average_jitters = round(sum(jitters) / len(jitters), 4) if len(jitters) != 0 else 0
+    average_throughputs = round(sum(throughputs) / len(throughputs), 4) if len(throughputs) != 0 else 0
+    average_latency = round(sum(latency) / len(latency), 4) if len(latency) != 0 else 0
+    packet_delivery_ratio = round(packet_received / total_packet, 4) if total_packet != 0 else 0
+
+    max_jitter, min_jitter = round(max(jitters),4), round(min(jitters),4)
+    max_throughtput, min_throughput = round(max(throughputs), 4), round(min(throughputs), 4)
+    max_latency, min_latency = round(max(latency),4), round(min(latency),4)
+
+    t = [i - time_stamps[0] for i in time_stamps]
+    rows = [[jitters[i], throughputs[i], latency[i], t[i]] for i in range(len(jitters))]
+    
+    try:
+        out_path = Path("statistics/stats.csv")
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        with out_path.open("w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["jitter", "throughput", "latency", "time stamps"])
+            writer.writerows(rows)
+    except PermissionError as e:
+        print(f"No permission for {out_path}: {e}")
+    except FileNotFoundError as e:
+        print(f"Parent directory missing: {e}")
+
+    try:
+        out_path = Path("statistics/summaries.txt")
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        with out_path.open("w", newline="", encoding="utf-8") as f:
+            text = (
+                f"                  min / mean / max \n"
+                f"jitter        :{min_jitter} / {average_jitters} / {max_jitter}\n"
+                f"throughput    :{min_throughput} / {average_throughputs} / {max_throughtput}\n"
+                f"latency       :{min_latency} / {average_latency} / {max_latency}\n"
+                "\n"
+                f"packets received          :{packet_received} \n"
+                f"expected total packets    :{total_packet} \n"
+                f"packet delivery ratio     :{packet_delivery_ratio} \n"
+            )
+            f.write(text)
+    except PermissionError as e:
+        print(f"No permission for {out_path}: {e}")
+    except FileNotFoundError as e:
+        print(f"Parent directory missing: {e}")

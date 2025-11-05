@@ -1,5 +1,5 @@
 from socket import socket, AF_INET, SOCK_DGRAM, timeout
-from utils import parse_packet, check_sender_packet, generate_ack, get_time_passed, ms_to_seconds
+from utils import parse_packet, check_sender_packet, generate_ack, get_time_passed, ms_to_seconds, generate_stats
 from config import SENDER_SEQ, SENDER_CHANNEL, SENDER_FLAGS, SENDER_TIMESTAMP
 import time
 from gameNetBuffer import GameNetBuffer
@@ -20,6 +20,14 @@ class GameReceiver():
         self.total_bytes = 0
         self.total_time_ms = 0.0
         print(f"Server is listening on port {self.receiver_port}...")
+
+        # Data collection
+        self.actual_packet_count = 0
+        self.jitters = []
+        self.throughputs = []
+        self.latency = []
+        self.total_packet = 0
+        self.time_stamp = []
 
     def check(self, metadata: tuple, payload: bytes):
         if not check_sender_packet(metadata, payload):
@@ -52,7 +60,6 @@ class GameReceiver():
                     self.packets_count += 1
 
                     print(f"Received packet from {addr}: {metadata}")
-                    self.print_stats(metadata, payload)
 
                     if not is_reliable and metadata[SENDER_CHANNEL] == 1:
                         max_attempts = 2
@@ -64,13 +71,19 @@ class GameReceiver():
                     if self.check(metadata, payload):
                         if not is_reliable:
                             callback_fn(payload)
+                            self.print_stats(metadata, payload)
                         else:
+                            if not receive_buffer.exist(metadata[SENDER_SEQ]):
+                                self.actual_packet_count += 1
+                                self.print_stats(metadata, payload) # only print stat for packet haven't buffered
+
                             receive_buffer.add_packet(metadata[SENDER_SEQ], payload)
                             next_expect_seq = receive_buffer.get_next_expected_sequence()
                             self.send_ack(addr, next_expect_seq)                        
 
                     if self.is_last_packet(metadata, receive_buffer):
                         print("Last packet received, stop receiving.")
+                        self.total_packet = metadata[SENDER_SEQ] + 1 # data collection
                         break
 
                     count = 0
@@ -89,6 +102,15 @@ class GameReceiver():
         print("Total packets received:", self.packets_count)
         data_received = receive_buffer.get_ordered_packets()
         
+        # data collection
+        if self.packets_count != 0:
+            generate_stats(jitters=self.jitters, 
+                        throughputs=self.throughputs, 
+                        latency=self.latency, 
+                        packet_received=self.actual_packet_count, 
+                        total_packet=self.total_packet,
+                        time_stamps=self.time_stamp)
+    
         self.packets_count = 0
 
         return data_received
@@ -104,7 +126,12 @@ class GameReceiver():
         print(f"\tLatency: {time_passed_ms} ms")
         print(f"\tThroughput: {throughput:.2f} bytes/s")
         print(f"\tJitter: {jitter:.2f} ms\n")
-    
+
+        self.jitters.append(jitter)
+        self.throughputs.append(throughput)
+        self.latency.append(time_passed_ms)
+        self.time_stamp.append(metadata[SENDER_TIMESTAMP])
+        
     def calc_throughput(self, payload_size:int, time_passed_ms:int):
         self.total_bytes += payload_size
         self.total_time_ms += time_passed_ms

@@ -20,3 +20,6 @@ class GameNetBuffer:
     
     def skip_current_offset(self):
         self.offset += 1
+
+    def exist(self, seq: int):
+        return seq in self.buffer
