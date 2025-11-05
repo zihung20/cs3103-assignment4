@@ -99,14 +99,15 @@ def generate_stats(jitters:list, throughputs:list, latency:list, packet_received
     max_throughtput, min_throughput = round(max(throughputs), 4), round(min(throughputs), 4)
     max_latency, min_latency = round(max(latency),4), round(min(latency),4)
 
-    rows = [[jitters[i], throughputs[i], latency[i]] for i in range(len(jitters))]
+    t = [i - time_stamps[0] for i in time_stamps]
+    rows = [[jitters[i], throughputs[i], latency[i], t[i]] for i in range(len(jitters))]
     
     try:
         out_path = Path("statistics/stats.csv")
         out_path.parent.mkdir(parents=True, exist_ok=True)
         with out_path.open("w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
-            writer.writerow(["jitter", "throughput", "latency"])
+            writer.writerow(["jitter", "throughput", "latency", "time stamps"])
             writer.writerows(rows)
     except PermissionError as e:
         print(f"No permission for {out_path}: {e}")

@@ -1,7 +1,7 @@
                   min / mean / max 
-jitter        :0.0 / 0.1073 / 0.1947
-throughput    :36333.3333 / 640486.9153 / 27000000.0
-latency       :0 / 0.1495 / 1
+jitter        :0.0 / 0.0999 / 0.1661
+throughput    :27000.0 / 258023.0957 / 5000000.0
+latency       :0 / 0.1682 / 1
 
 packets received          :107 
 expected total packets    :107 

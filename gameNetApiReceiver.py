@@ -130,7 +130,7 @@ class GameReceiver():
         self.jitters.append(jitter)
         self.throughputs.append(throughput)
         self.latency.append(time_passed_ms)
-        self.time_stamp.append(time_passed_ms)
+        self.time_stamp.append(metadata[SENDER_TIMESTAMP])
         
     def calc_throughput(self, payload_size:int, time_passed_ms:int):
         self.total_bytes += payload_size
