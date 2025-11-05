@@ -22,6 +22,7 @@ class GameReceiver():
         print(f"Server is listening on port {self.receiver_port}...")
 
         # Data collection
+        self.actual_packet_count = 0
         self.jitters = []
         self.throughputs = []
         self.latency = []
@@ -58,7 +59,6 @@ class GameReceiver():
                     self.packets_count += 1
 
                     print(f"Received packet from {addr}: {metadata}")
-                    self.print_stats(metadata, payload)
 
                     if not is_reliable and metadata[SENDER_CHANNEL] == 1:
                         max_attempts = 2
@@ -70,7 +70,12 @@ class GameReceiver():
                     if self.check(metadata, payload):
                         if not is_reliable:
                             callback_fn(payload)
+                            self.print_stats(metadata, payload)
                         else:
+                            if not receive_buffer.exist(metadata[SENDER_SEQ]):
+                                self.actual_packet_count += 1
+                                self.print_stats(metadata, payload) # only print stat for packet haven't buffered
+
                             receive_buffer.add_packet(metadata[SENDER_SEQ], payload)
                             next_expect_seq = receive_buffer.get_next_expected_sequence()
                             self.send_ack(addr, next_expect_seq)                        
@@ -96,11 +101,12 @@ class GameReceiver():
         print("Total packets received:", self.packets_count)
         data_received = receive_buffer.get_ordered_packets()
         
+        # data collection
         if self.packets_count != 0:
             generate_stats(jitters=self.jitters, 
                         throughputs=self.throughputs, 
                         latency=self.latency, 
-                        packet_received=self.packets_count, 
+                        packet_received=self.actual_packet_count, 
                         total_packet=self.total_packet)
     
         self.packets_count = 0
