@@ -1,6 +1,7 @@
-Average jitter        :0.1729443388652415 
-Average throughput    :129425.45718819491 
-Average latency       :0.32710280373831774 
+                  min / mean / max 
+jitter        :0.0 / 0.1073 / 0.1947
+throughput    :36333.3333 / 640486.9153 / 27000000.0
+latency       :0 / 0.1495 / 1
 
 packets received          :107 
 expected total packets    :107 

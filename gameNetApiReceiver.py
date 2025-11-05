@@ -27,6 +27,7 @@ class GameReceiver():
         self.throughputs = []
         self.latency = []
         self.total_packet = 0
+        self.time_stamp = []
 
     def check(self, metadata: tuple, payload: bytes):
         if not check_sender_packet(metadata, payload):
@@ -107,7 +108,8 @@ class GameReceiver():
                         throughputs=self.throughputs, 
                         latency=self.latency, 
                         packet_received=self.actual_packet_count, 
-                        total_packet=self.total_packet)
+                        total_packet=self.total_packet,
+                        time_stamps=self.time_stamp)
     
         self.packets_count = 0
 
@@ -128,6 +130,7 @@ class GameReceiver():
         self.jitters.append(jitter)
         self.throughputs.append(throughput)
         self.latency.append(time_passed_ms)
+        self.time_stamp.append(time_passed_ms)
         
     def calc_throughput(self, payload_size:int, time_passed_ms:int):
         self.total_bytes += payload_size

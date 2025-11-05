@@ -89,11 +89,15 @@ def check_ack_corrupt(metadata:tuple) -> bool:
     return received_checksum == computed_checksum
 
 
-def generate_stats(jitters:list, throughputs:list, latency:list, packet_received:list, total_packet:list):
-    average_jitters = sum(jitters) / len(jitters) if len(jitters) != 0 else 0
-    average_throughputs = sum(throughputs) / len(throughputs) if len(throughputs) != 0 else 0
-    average_latency = sum(latency) / len(latency) if len(latency) != 0 else 0
-    packet_delivery_ratio = packet_received / total_packet if total_packet != 0 else 0
+def generate_stats(jitters:list, throughputs:list, latency:list, packet_received:list, total_packet:list, time_stamps:list):
+    average_jitters = round(sum(jitters) / len(jitters), 4) if len(jitters) != 0 else 0
+    average_throughputs = round(sum(throughputs) / len(throughputs), 4) if len(throughputs) != 0 else 0
+    average_latency = round(sum(latency) / len(latency), 4) if len(latency) != 0 else 0
+    packet_delivery_ratio = round(packet_received / total_packet, 4) if total_packet != 0 else 0
+
+    max_jitter, min_jitter = round(max(jitters),4), round(min(jitters),4)
+    max_throughtput, min_throughput = round(max(throughputs), 4), round(min(throughputs), 4)
+    max_latency, min_latency = round(max(latency),4), round(min(latency),4)
 
     rows = [[jitters[i], throughputs[i], latency[i]] for i in range(len(jitters))]
     
@@ -114,9 +118,10 @@ def generate_stats(jitters:list, throughputs:list, latency:list, packet_received
         out_path.parent.mkdir(parents=True, exist_ok=True)
         with out_path.open("w", newline="", encoding="utf-8") as f:
             text = (
-                f"Average jitter        :{average_jitters} \n"
-                f"Average throughput    :{average_throughputs} \n"
-                f"Average latency       :{average_latency} \n"
+                f"                  min / mean / max \n"
+                f"jitter        :{min_jitter} / {average_jitters} / {max_jitter}\n"
+                f"throughput    :{min_throughput} / {average_throughputs} / {max_throughtput}\n"
+                f"latency       :{min_latency} / {average_latency} / {max_latency}\n"
                 "\n"
                 f"packets received          :{packet_received} \n"
                 f"expected total packets    :{total_packet} \n"
