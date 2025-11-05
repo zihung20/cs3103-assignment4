@@ -1,3 +1,5 @@
+import csv
+from pathlib import Path
 import time, struct, zlib
 from config import FOUR_BYTES_MASK, TWO_BYTES_MASK, ONE_BYTES_MASK, SENDER_HEADER_FORMAT, RECEIVER_ACK_FORMAT, \
     ACK_FLAGS, ACK_CHECKSUM, ACK_SEQUENCE, ACK_TIMESTAMP, SENDER_CHANNEL, SENDER_FLAGS, SENDER_SEQ, \
@@ -85,3 +87,43 @@ def check_ack_corrupt(metadata:tuple) -> bool:
     temp_ack = struct.pack(RECEIVER_ACK_FORMAT, metadata[ACK_FLAGS], metadata[ACK_SEQUENCE], 0, metadata[ACK_TIMESTAMP])
     computed_checksum = checksum(temp_ack)
     return received_checksum == computed_checksum
+
+
+def generate_stats(jitters:list, throughputs:list, latency:list, packet_received:list, total_packet:list):
+    average_jitters = sum(jitters) / len(jitters) if len(jitters) != 0 else 0
+    average_throughputs = sum(throughputs) / len(throughputs) if len(throughputs) != 0 else 0
+    average_latency = sum(latency) / len(latency) if len(latency) != 0 else 0
+    packet_delivery_ratio = packet_received / total_packet if total_packet != 0 else 0
+
+    rows = [[jitters[i], throughputs[i], latency[i]] for i in range(len(jitters))]
+    
+    try:
+        out_path = Path("statistics/stats.csv")
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        with out_path.open("w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["jitter", "throughput", "latency"])
+            writer.writerows(rows)
+    except PermissionError as e:
+        print(f"No permission for {out_path}: {e}")
+    except FileNotFoundError as e:
+        print(f"Parent directory missing: {e}")
+
+    try:
+        out_path = Path("statistics/summaries.txt")
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        with out_path.open("w", newline="", encoding="utf-8") as f:
+            text = (
+                f"Average jitter        :{average_jitters} \n"
+                f"Average throughput    :{average_throughputs} \n"
+                f"Average latency       :{average_latency} \n"
+                "\n"
+                f"packets received          :{packet_received} \n"
+                f"expected total packets    :{total_packet} \n"
+                f"packet delivery ratio     :{packet_delivery_ratio} \n"
+            )
+            f.write(text)
+    except PermissionError as e:
+        print(f"No permission for {out_path}: {e}")
+    except FileNotFoundError as e:
+        print(f"Parent directory missing: {e}")

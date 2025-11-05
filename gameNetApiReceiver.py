@@ -1,5 +1,5 @@
 from socket import socket, AF_INET, SOCK_DGRAM, timeout
-from utils import parse_packet, check_sender_packet, generate_ack, get_time_passed, ms_to_seconds
+from utils import parse_packet, check_sender_packet, generate_ack, get_time_passed, ms_to_seconds, generate_stats
 from config import SENDER_SEQ, SENDER_CHANNEL, SENDER_FLAGS, SENDER_TIMESTAMP
 import time
 from gameNetBuffer import GameNetBuffer
@@ -20,6 +20,12 @@ class GameReceiver():
         self.total_bytes = 0
         self.total_time_ms = 0.0
         print(f"Server is listening on port {self.receiver_port}...")
+
+        # Data collection
+        self.jitters = []
+        self.throughputs = []
+        self.latency = []
+        self.total_packet = 0
 
     def check(self, metadata: tuple, payload: bytes):
         if not check_sender_packet(metadata, payload):
@@ -71,6 +77,7 @@ class GameReceiver():
 
                     if self.is_last_packet(metadata, receive_buffer):
                         print("Last packet received, stop receiving.")
+                        self.total_packet = metadata[SENDER_SEQ] + 1 # data collection
                         break
 
                     count = 0
@@ -89,6 +96,13 @@ class GameReceiver():
         print("Total packets received:", self.packets_count)
         data_received = receive_buffer.get_ordered_packets()
         
+        if self.packets_count != 0:
+            generate_stats(jitters=self.jitters, 
+                        throughputs=self.throughputs, 
+                        latency=self.latency, 
+                        packet_received=self.packets_count, 
+                        total_packet=self.total_packet)
+    
         self.packets_count = 0
 
         return data_received
@@ -104,7 +118,11 @@ class GameReceiver():
         print(f"\tLatency: {time_passed_ms} ms")
         print(f"\tThroughput: {throughput:.2f} bytes/s")
         print(f"\tJitter: {jitter:.2f} ms\n")
-    
+
+        self.jitters.append(jitter)
+        self.throughputs.append(throughput)
+        self.latency.append(time_passed_ms)
+        
     def calc_throughput(self, payload_size:int, time_passed_ms:int):
         self.total_bytes += payload_size
         self.total_time_ms += time_passed_ms
