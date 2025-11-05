@@ -16,7 +16,7 @@ class GameNetBuffer:
         if not self.buffer:
             return 0
         
-        seq = min(self.buffer.keys()) & 0xFF00
+        start_seq = min(self.buffer.keys()) & 0xFF00
 
         for seq in sorted(self.buffer.keys()):
             seq_offset = seq & 0x00FF
@@ -27,7 +27,7 @@ class GameNetBuffer:
             else:
                 break
 
-        return (seq & 0xFF00) + (self.offset & 0x00FF)
+        return (start_seq & 0xFF00) + (self.offset & 0x00FF)
     
     def skip_current_offset(self):
         self.offset += 1
