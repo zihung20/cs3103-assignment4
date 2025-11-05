@@ -5,7 +5,7 @@ services:
     networks: [quicnet]
     command: ["python", "receiverExample.py"]
     environment:
-      - HOST=0.0.0.0
+      - HOST=receiver
       - PORT=4433
     volumes:
       - .:/app

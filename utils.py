@@ -1,6 +1,6 @@
 import time, struct, zlib
 from config import FOUR_BYTES_MASK, TWO_BYTES_MASK, ONE_BYTES_MASK, SENDER_HEADER_FORMAT, RECEIVER_ACK_FORMAT, \
-    PAYLOAD_SIZE_BYTES, ACK_FLAGS, ACK_CHECKSUM, ACK_SEQUENCE, ACK_TIMESTAMP, SENDER_CHANNEL, SENDER_FLAGS, SENDER_SEQ, \
+    ACK_FLAGS, ACK_CHECKSUM, ACK_SEQUENCE, ACK_TIMESTAMP, SENDER_CHANNEL, SENDER_FLAGS, SENDER_SEQ, \
         SENDER_LENGTH, SENDER_TIMESTAMP
 
 # Utility functions for packet constructing and parsing
@@ -15,16 +15,16 @@ def get_time_passed(timestamp):
 def checksum(packet:bytes) -> int:
     return zlib.crc32(packet)
 
-def generate_chunks(data:bytes) -> list[bytes]:
-    chunks: list[bytes] = []
+def generate_seq_no(start_seq: int, offset: int) -> int:
+    return (start_seq & 0xFF00) | (offset & 0x00FF)
 
-    for i in range (0, len(data), PAYLOAD_SIZE_BYTES):
-        chunk = data[i: i + PAYLOAD_SIZE_BYTES]
-        chunks.append(chunk)
-    
-    return chunks
+def get_offset_from_seq(seq_no: int) -> int:
+    return seq_no & 0x00FF
 
-def build_sender_packet(seq_no: int, payload, is_reliable:bool, is_last: bool):
+def ms_to_seconds(ms: int) -> float:
+    return ms / 1000.0
+
+def build_sender_packet(start_seq: int, offset: int, payload, is_reliable: bool, is_last: bool):
     """channel (8 bits) | flags(8 bits)|
        seq (16 bits) | len(16 bits)|
        checksum(32 bits) | timestamp(32 bits)
@@ -36,7 +36,7 @@ def build_sender_packet(seq_no: int, payload, is_reliable:bool, is_last: bool):
     channel = (1 if is_reliable else 0) & 0xFF
     flags = (1 if is_last else 0) & 0xFF
     checksum_val = 0
-    seq_no = seq_no & TWO_BYTES_MASK  # ensure within 2 bytes
+    seq_no = generate_seq_no(start_seq, offset) & TWO_BYTES_MASK
     payload_size = len(payload) & TWO_BYTES_MASK
     timestamp_ms = get_current_timestamp()
 

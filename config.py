@@ -1,7 +1,8 @@
 import os, socket
 
+HOST = os.getenv("HOST", "127.0.0.1")
 PORT = int(os.getenv("PORT", 4433))
-MESSAGE_STRING = "utf-8"  # haven't used, in case any encoding error
+MESSAGE_ENCODING = "utf-8"  # haven't used, in case any encoding error
 TIME_LIMIT_MS = 10000
 
 ONE_BYTES_MASK = 0xFF
@@ -27,6 +28,5 @@ ACK_SEQUENCE    = 1  # 16-bit ACK sequence number
 ACK_CHECKSUM    = 2  # 32-bit checksum
 ACK_TIMESTAMP   = 3  # 32-bit ms timestamp (receive/send time)
 
-PAYLOAD_SIZE_BYTES = 1186
 WINDOW_SIZE = 5
 
