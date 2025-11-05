@@ -28,3 +28,8 @@ out/
 # Personal files
 test.py
 AHTP-Assignment4-miniProject.pdf
+
+# statistics
+statistics/*.csv
+statistics/*.png
+statistics/*.txt

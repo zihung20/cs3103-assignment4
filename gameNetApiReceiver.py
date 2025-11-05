@@ -36,8 +36,8 @@ class GameReceiver():
         
         return True
 
-    def send_ack(self, sender_address: tuple, ack_sequence: int, to_stop: bool = False) -> None:
-        ack_packet = generate_ack(ack_sequence, to_stop)
+    def send_ack(self, sender_address: tuple, ack_sequence: int, sender_timestamp:int, to_stop: bool = False) -> None:
+        ack_packet = generate_ack(ack_sequence, to_stop, sender_timestamp)
         self.receiver_socket.sendto(ack_packet, sender_address)
 
     def receive_data(self, callback_fn, timeout_ms: int = 1000, idle_ms: int = 10000) -> list[bytes] | None:
@@ -79,7 +79,7 @@ class GameReceiver():
 
                             receive_buffer.add_packet(metadata[SENDER_SEQ], payload)
                             next_expect_seq = receive_buffer.get_next_expected_sequence()
-                            self.send_ack(addr, next_expect_seq)                        
+                            self.send_ack(addr, next_expect_seq, metadata[SENDER_TIMESTAMP])                        
 
                     if self.is_last_packet(metadata, receive_buffer):
                         print("Last packet received, stop receiving.")

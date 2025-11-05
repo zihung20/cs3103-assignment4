@@ -65,17 +65,16 @@ def check_sender_packet(metadata, payload) -> bool:
 
     return received_checksum == computed_checksum
 
-def generate_ack(sequence:int, to_stop:bool) -> bytes:
+def generate_ack(sequence:int, to_stop:bool, sender_timestamp:int) -> bytes:
     """flags (8bit) | ack sequence (16 bits) | checksum (32 bits) | timestamp (32 bits)"""
     flags = (1 if to_stop else 0) & ONE_BYTES_MASK
     sequence = sequence & TWO_BYTES_MASK
     checksum_val = 0
-    timestamp_ms = get_current_timestamp() & FOUR_BYTES_MASK
 
-    temp_ack = struct.pack(RECEIVER_ACK_FORMAT, flags, sequence, checksum_val, timestamp_ms)
+    temp_ack = struct.pack(RECEIVER_ACK_FORMAT, flags, sequence, checksum_val, sender_timestamp)
     checksum_val = checksum(temp_ack)
 
-    final_ack = struct.pack(RECEIVER_ACK_FORMAT, flags, sequence, checksum_val, timestamp_ms)
+    final_ack = struct.pack(RECEIVER_ACK_FORMAT, flags, sequence, checksum_val, sender_timestamp)
     return final_ack
 
 def parse_ack(ack:bytes):
@@ -103,7 +102,7 @@ def generate_stats(jitters:list, throughputs:list, latency:list, packet_received
     rows = [[jitters[i], throughputs[i], latency[i], t[i]] for i in range(len(jitters))]
     
     try:
-        out_path = Path("statistics/stats.csv")
+        out_path = Path("statistics/receiver_stats.csv")
         out_path.parent.mkdir(parents=True, exist_ok=True)
         with out_path.open("w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
@@ -133,3 +132,19 @@ def generate_stats(jitters:list, throughputs:list, latency:list, packet_received
         print(f"No permission for {out_path}: {e}")
     except FileNotFoundError as e:
         print(f"Parent directory missing: {e}")
+
+def generate_sender_stats(rtts:list):
+    
+    try:
+        out_path = Path("statistics/sender_stats.csv")
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        with out_path.open("w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["RTT (ms)"])
+            for rtt in rtts:
+                writer.writerow([rtt])    
+    except PermissionError as e:
+        print(f"No permission for {out_path}: {e}")
+    except FileNotFoundError as e:
+        print(f"Parent directory missing: {e}")
+    pass

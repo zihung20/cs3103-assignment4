@@ -1,6 +1,6 @@
 from socket import socket, AF_INET, SOCK_DGRAM, gethostbyname
-from utils import parse_ack, check_ack_corrupt, build_sender_packet, generate_seq_no, get_offset_from_seq
-from config import TIME_LIMIT_MS, WINDOW_SIZE, SENDER_RETRY_LIMIT, ACK_SEQUENCE, ACK_FLAGS
+from utils import parse_ack, check_ack_corrupt, build_sender_packet, get_time_passed, get_offset_from_seq, generate_sender_stats
+from config import TIME_LIMIT_MS, WINDOW_SIZE, SENDER_RETRY_LIMIT, ACK_SEQUENCE, ACK_FLAGS, FOUR_BYTES_MASK, ACK_TIMESTAMP
 import select, time
 
 class GameSender:
@@ -30,6 +30,7 @@ class GameSender:
         left = 0
         right = 0
         sender_timeout_ms = TIME_LIMIT_MS / 20 # random guess
+        rtts = []
 
         time_start = None
 
@@ -83,6 +84,7 @@ class GameSender:
                 ack_no = metadata[ACK_SEQUENCE]
                 flag = metadata[ACK_FLAGS]
                 ack_offset = get_offset_from_seq(ack_no)
+                rtts.append(self.get_rtt(metadata[ACK_TIMESTAMP]))
 
                 if ack_offset >= left:
                     print(f"Received ACK for seq {ack_offset}, sliding window")
@@ -103,6 +105,7 @@ class GameSender:
             else:
                 print("Maximum resend attempts reached, ignore packet.")
                 left += 1
+        generate_sender_stats(rtts)
     
     def resend_range(self, start_seq: int, left: int, right: int, data: list[bytes]) -> None:
         for offset in range(left, right):
@@ -116,3 +119,8 @@ class GameSender:
             return False
 
         return flag == 1
+    
+    def get_rtt(self, sender_timestamp: int) -> None:
+        rtt = get_time_passed(sender_timestamp) & FOUR_BYTES_MASK
+        print(f"Received ACK, rtt={rtt} ms")
+        return rtt
