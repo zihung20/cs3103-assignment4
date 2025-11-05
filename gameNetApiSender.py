@@ -24,6 +24,7 @@ class GameSender:
         for i, chunk in enumerate(data):
             packet = build_sender_packet(0, i, chunk, False, True)
             self.receiver_socket.sendto(packet, self.receiver_address)
+            time.sleep(0.001)
 
     def send_reliable_packets(self, data: list[bytes]) -> None:
         random.seed(time.time())
