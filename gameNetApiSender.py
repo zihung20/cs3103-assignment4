@@ -23,7 +23,7 @@ class GameSender:
         for i, chunk in enumerate(data):
             packet = build_sender_packet(i, chunk, False, True)
             self.receiver_socket.sendto(packet, self.receiver_address)
-            time.sleep(0.01)
+            time.sleep(0.005)  # slight delay to avoid overwhelming the network
 
     def send_reliable_packets(self, data: list[bytes]) -> None:
         left = 0

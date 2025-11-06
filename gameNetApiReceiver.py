@@ -26,7 +26,6 @@ class GameReceiver():
         self.jitters = []
         self.throughputs = []
         self.latency = []
-        self.total_packet = 0
         self.time_stamp = []
         self.latest_seq = 0
 
@@ -45,7 +44,7 @@ class GameReceiver():
         receive_buffer = GameNetBuffer(callback_fn)
         count = 0
         max_attempts = 5 # initial max attempts, more times allow to receive first packet
-
+        started = False
         last_activity = time.time()
         is_reliable = False
         
@@ -53,8 +52,9 @@ class GameReceiver():
         # if exceed idle timeout without receiving any packets, stop receiving
         while time.time() - last_activity < ms_to_seconds(idle_ms):
             if count < max_attempts:
-                self.receiver_socket.settimeout(ms_to_seconds(timeout_ms))
-                
+                remain_time = timeout_ms if not started else idle_ms
+                self.receiver_socket.settimeout(ms_to_seconds(remain_time))
+                started = True
                 try:
                     packet, addr = self.receiver_socket.recvfrom(2048)
                     metadata, payload = parse_packet(packet)
@@ -74,6 +74,7 @@ class GameReceiver():
                             callback_fn(payload)
                             self.print_stats(metadata, payload)
                             self.latest_seq = max(self.latest_seq, metadata[SENDER_SEQ])
+                            receive_buffer.add_packet(metadata[SENDER_SEQ], payload)
                         else:
                             if not receive_buffer.exist(metadata[SENDER_SEQ]):
                                 self.actual_packet_count += 1
@@ -83,9 +84,8 @@ class GameReceiver():
                             next_expect_seq = receive_buffer.get_next_expected_sequence()
                             self.send_ack(addr, next_expect_seq, metadata[SENDER_TIMESTAMP])                        
 
-                    if self.is_last_packet(metadata, receive_buffer):
+                    if is_reliable and self.is_last_packet(metadata, receive_buffer):
                         print("Last packet received, stop receiving.")
-                        self.total_packet = metadata[SENDER_SEQ] + 1 # data collection
                         break
 
                     count = 0
@@ -97,9 +97,6 @@ class GameReceiver():
                 receive_buffer.skip_current_offset()
                 count = 0
 
-            if time.time() - last_activity >= ms_to_seconds(idle_ms):
-                print("Idle timeout reached during receiving")
-                break
 
         print("Total packets received:", self.packets_count)
         data_received = receive_buffer.get_ordered_packets()
@@ -110,7 +107,7 @@ class GameReceiver():
                         throughputs=self.throughputs, 
                         latency=self.latency, 
                         packet_received=self.actual_packet_count, 
-                        total_packet=self.total_packet,
+                        total_packet=receive_buffer.get_next_expected_sequence(),
                         time_stamps=self.time_stamp)
             
         if self.packets_count != 0 and not is_reliable:
@@ -120,7 +117,7 @@ class GameReceiver():
                         packet_received=self.packets_count, 
                         total_packet=self.latest_seq + 1,
                         time_stamps=self.time_stamp)
-    
+
         self.packets_count = 0
 
         return data_received

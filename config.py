@@ -3,7 +3,7 @@ import os, socket
 HOST = os.getenv("HOST", "127.0.0.1")
 PORT = int(os.getenv("PORT", 4433))
 MESSAGE_ENCODING = "utf-8"  # haven't used, in case any encoding error
-TIME_LIMIT_MS = 10000
+TIME_LIMIT_MS = 200
 
 ONE_BYTES_MASK = 0xFF
 TWO_BYTES_MASK = 0xFFFF

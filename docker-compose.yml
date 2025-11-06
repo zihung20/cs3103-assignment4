@@ -9,9 +9,11 @@ services:
       - -lc
       - |
         tc qdisc replace dev eth0 root netem \
-          delay 100ms 10ms distribution normal \
-          loss 1% \
-          reorder 0.1% 25%;
+          delay 200ms 50ms distribution normal \
+          loss 5% \
+          corrupt 0.1% \
+          reorder 1% 25% \
+          duplicate 0.5%;
         python receiverExample.py ;
         tc qdisc del dev eth0 root || true
     environment:
@@ -46,9 +48,11 @@ services:
       - -lc
       - |
         tc qdisc replace dev eth0 root netem \
-          delay 100ms 10ms distribution normal \
-          loss 1% \
-          reorder 0.1% 25%;
+          delay 200ms 50ms distribution normal \
+          loss 5% \
+          corrupt 0.1% \
+          reorder 1% 25% \
+          duplicate 0.5%;
         python senderExample.py ;
         tc qdisc del dev eth0 root || true
     environment:
