@@ -1,3 +1,5 @@
+from config import TWO_BYTES_MASK
+
 class GameNetBuffer:
     def __init__(self, callback_fn=None):
         self.buffer = {}
@@ -16,7 +18,7 @@ class GameNetBuffer:
         return [self.buffer[seq] for seq in sorted(self.buffer.keys())]
 
     def get_next_expected_sequence(self):
-        return self.offset & 0x00FF
+        return self.offset & TWO_BYTES_MASK
     
     def skip_current_offset(self):
         self.offset += 1

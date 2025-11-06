@@ -14,9 +14,10 @@ def main():
         if not data:
             print("No more data received, exiting.")
             break
-
+            
+        print("Data received using the api:\n")
         for d in data:
-            print(f"Data received using the api: \n{d.decode(MESSAGE_ENCODING)}")
+            print(f"{d.decode(MESSAGE_ENCODING)}")
             buffer.append(d.decode(MESSAGE_ENCODING))
 
     # with open("received_messages.txt", "w", encoding=MESSAGE_ENCODING) as f:
