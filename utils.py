@@ -64,7 +64,7 @@ def generate_ack(sequence:int, to_stop:bool, sender_timestamp:int) -> bytes:
     flags = (1 if to_stop else 0) & ONE_BYTES_MASK
     sequence = sequence & TWO_BYTES_MASK
     checksum_val = 0
-    
+
     temp_ack = struct.pack(RECEIVER_ACK_FORMAT, flags, sequence, checksum_val, sender_timestamp)
     checksum_val = checksum(temp_ack)
 
@@ -82,7 +82,7 @@ def check_ack_corrupt(metadata:tuple) -> bool:
     return received_checksum == computed_checksum
 
 
-def generate_stats(jitters:list, throughputs:list, latency:list, packet_received:list, total_packet:list, time_stamps:list):
+def generate_stats(jitters:list, throughputs:list, latency:list, packet_received:int, total_packet:int, time_stamps:list):
     average_jitters = round(sum(jitters) / len(jitters), 4) if len(jitters) != 0 else 0
     average_throughputs = round(sum(throughputs) / len(throughputs), 4) if len(throughputs) != 0 else 0
     average_latency = round(sum(latency) / len(latency), 4) if len(latency) != 0 else 0

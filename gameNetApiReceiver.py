@@ -76,6 +76,7 @@ class GameReceiver():
                         if metadata[SENDER_SEQ] == receive_buffer.get_next_expected_sequence():
                             deadline_current_seq = time.time() + timeout_ms / 1000
                             self.actual_packet_count += 1
+                            self.latest_seq = max(self.latest_seq, metadata[SENDER_SEQ])
                             self.print_stats(metadata, payload)
                             deadline_current_seq = time.time() + timeout_ms / 1000
                             count = 1
@@ -100,13 +101,14 @@ class GameReceiver():
         print("Total packets received:", self.packets_count)
         data_received = receive_buffer.get_ordered_packets()
         
+        print("Total packets :", receive_buffer.get_len(), receive_buffer.buffer.keys())
         # data collection
         if self.packets_count != 0 and is_reliable:
             generate_stats(jitters=self.jitters, 
                         throughputs=self.throughputs, 
                         latency=self.latency, 
-                        packet_received=self.actual_packet_count, 
-                        total_packet=receive_buffer.get_next_expected_sequence(),
+                        packet_received=receive_buffer.get_len(), 
+                        total_packet=self.latest_seq + 1,
                         time_stamps=self.time_stamp)
             
         if self.packets_count != 0 and not is_reliable:
