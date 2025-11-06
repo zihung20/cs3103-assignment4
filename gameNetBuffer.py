@@ -7,11 +7,12 @@ class GameNetBuffer:
         self.callback_fn = callback_fn
 
     def add_packet(self, seq: int, packet: bytes):
-        
         self.buffer[seq] = packet
+
         while self.offset in self.buffer:
             if self.callback_fn:
                 self.callback_fn(self.buffer[self.offset])
+            
             self.offset += 1
 
     def get_ordered_packets(self) -> list[bytes]:
