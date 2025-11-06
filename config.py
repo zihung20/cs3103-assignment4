@@ -28,5 +28,5 @@ ACK_SEQUENCE    = 1  # 16-bit ACK sequence number
 ACK_CHECKSUM    = 2  # 32-bit checksum
 ACK_TIMESTAMP   = 3  # 32-bit ms timestamp (receive/send time)
 
-WINDOW_SIZE = 15
+WINDOW_SIZE = 10
 

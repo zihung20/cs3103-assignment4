@@ -26,3 +26,6 @@ class GameNetBuffer:
 
     def exist(self, seq: int):
         return seq in self.buffer
+    
+    def get_len(self):
+        return len(self.buffer)

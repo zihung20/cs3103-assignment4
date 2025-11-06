@@ -64,7 +64,7 @@ def generate_ack(sequence:int, to_stop:bool, sender_timestamp:int) -> bytes:
     flags = (1 if to_stop else 0) & ONE_BYTES_MASK
     sequence = sequence & TWO_BYTES_MASK
     checksum_val = 0
-    
+
     temp_ack = struct.pack(RECEIVER_ACK_FORMAT, flags, sequence, checksum_val, sender_timestamp)
     checksum_val = checksum(temp_ack)
 

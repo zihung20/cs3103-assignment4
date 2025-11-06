@@ -77,11 +77,10 @@ class GameReceiver():
                     else:
                         if metadata[SENDER_SEQ] == receive_buffer.get_next_expected_sequence():
                             self.actual_packet_count += 1
-                            deadline_current_seq = time.time() + ms_to_seconds(timeout_ms)
-                            count = 1
-
+                            self.max_seq = max(self.max_seq, metadata[SENDER_SEQ])
                             self.print_stats(metadata, payload)
                         
+                        deadline_current_seq = time.time() + ms_to_seconds(timeout_ms)
                         receive_buffer.add_packet(metadata[SENDER_SEQ], payload)
                         next_expect_seq = receive_buffer.get_next_expected_sequence()
                         self.send_ack(addr, next_expect_seq, metadata[SENDER_TIMESTAMP])
@@ -103,13 +102,14 @@ class GameReceiver():
         print("Total packets received:", self.packets_count)
         data_received = receive_buffer.get_ordered_packets()
         
+        print("Total packets :", receive_buffer.get_len(), receive_buffer.buffer.keys())
         # data collection
         if self.packets_count != 0 and is_reliable:
             generate_stats(jitters=self.jitters, 
                         throughputs=self.throughputs, 
                         latency=self.latency, 
-                        packet_received=self.actual_packet_count, 
-                        total_packet=receive_buffer.get_next_expected_sequence(),
+                        packet_received=receive_buffer.get_len(), 
+                        total_packet=self.max_seq + 1,
                         time_stamps=self.time_stamp)
             
         if self.packets_count != 0 and not is_reliable:
