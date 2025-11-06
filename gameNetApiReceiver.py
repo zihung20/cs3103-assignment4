@@ -19,16 +19,17 @@ class GameReceiver():
         self.prev_time_passed_ms = 0.0
         self.total_bytes = 0
         self.total_time_ms = 0.0
-        print(f"Server is listening on port {self.receiver_port}...")
 
         # Data collection
-        self.actual_packet_count = 0
         self.jitters = []
         self.throughputs = []
         self.latency = []
-        self.total_packet = 0
         self.time_stamp = []
-        self.latest_seq = 0
+        self.actual_packet_count = 0
+        self.total_packet = 0
+        self.max_seq = 0
+
+        print(f"Server is listening on port {self.receiver_port}...")
 
     def check(self, metadata: tuple, payload: bytes):
         if not check_sender_packet(metadata, payload):
@@ -46,7 +47,7 @@ class GameReceiver():
 
         last_activity = time.time()
         is_reliable = False
-        deadline_current_seq = time.time() + idle_ms / 1000
+        deadline_current_seq = time.time() + ms_to_seconds(idle_ms)
         count = 1
 
         while time.time() - last_activity < ms_to_seconds(idle_ms):
@@ -68,21 +69,23 @@ class GameReceiver():
                 if self.check(metadata, payload):
                     if not is_reliable:
                         callback_fn(payload)
-                        self.print_stats(metadata, payload)
-                        self.latest_seq = max(self.latest_seq, metadata[SENDER_SEQ])
-                        deadline_current_seq = time.time() + timeout_ms / 1000
+                        self.max_seq = max(self.max_seq, metadata[SENDER_SEQ])
+                        deadline_current_seq = time.time() + ms_to_seconds(timeout_ms)
                         receive_buffer.add_packet(metadata[SENDER_SEQ], payload)
+
+                        self.print_stats(metadata, payload)
                     else:
                         if metadata[SENDER_SEQ] == receive_buffer.get_next_expected_sequence():
-                            deadline_current_seq = time.time() + timeout_ms / 1000
                             self.actual_packet_count += 1
-                            self.print_stats(metadata, payload)
-                            deadline_current_seq = time.time() + timeout_ms / 1000
+                            deadline_current_seq = time.time() + ms_to_seconds(timeout_ms)
                             count = 1
+
+                            self.print_stats(metadata, payload)
+                        
                         receive_buffer.add_packet(metadata[SENDER_SEQ], payload)
                         next_expect_seq = receive_buffer.get_next_expected_sequence()
                         self.send_ack(addr, next_expect_seq, metadata[SENDER_TIMESTAMP])
-                                                
+            
                 if is_reliable and self.is_last_packet(metadata, receive_buffer):
                     print("Last packet received, stop receiving.")
                     self.total_packet = metadata[SENDER_SEQ] + 1 # data collection
@@ -93,7 +96,7 @@ class GameReceiver():
                 if time.time() >= deadline_current_seq:
                     print(f"Exceeded time, skip the packet.")
                     receive_buffer.skip_current_offset()
-                    deadline_current_seq = time.time() + timeout_ms / 1000 * count
+                    deadline_current_seq = time.time() + ms_to_seconds(timeout_ms) * count
                     count += 1
 
 
@@ -114,7 +117,7 @@ class GameReceiver():
                         throughputs=self.throughputs, 
                         latency=self.latency, 
                         packet_received=self.packets_count, 
-                        total_packet=self.latest_seq + 1,
+                        total_packet=self.max_seq + 1,
                         time_stamps=self.time_stamp)
     
         self.packets_count = 0
