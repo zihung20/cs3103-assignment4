@@ -95,9 +95,10 @@ def generate_stats(jitters:list, throughputs:list, latency:list, packet_received
     max_latency, min_latency = round(max(latency),4), round(min(latency),4)
     t = [i - first_time for i in time_stamps]
     rows = [[jitters[i], throughputs[i], latency[i], t[i]] for i in range(len(jitters))]
+
+    out_path = Path("statistics/receiver_stats.csv")
     
     try:
-        out_path = Path("statistics/receiver_stats.csv")
         out_path.parent.mkdir(parents=True, exist_ok=True)
         with out_path.open("w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
@@ -129,9 +130,9 @@ def generate_stats(jitters:list, throughputs:list, latency:list, packet_received
         print(f"Parent directory missing: {e}")
 
 def generate_sender_stats(rtts:list):
-    
+    out_path = Path("statistics/sender_stats.csv")
+        
     try:
-        out_path = Path("statistics/sender_stats.csv")
         out_path.parent.mkdir(parents=True, exist_ok=True)
         with out_path.open("w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
