@@ -110,7 +110,7 @@ class GameReceiver():
                         throughputs=self.throughputs, 
                         latency=self.latency, 
                         packet_received=self.actual_packet_count, 
-                        total_packet=self.total_packet,
+                        total_packet=receive_buffer.get_next_expected_sequence(),
                         time_stamps=self.time_stamp)
             
         if self.packets_count != 0 and not is_reliable:
