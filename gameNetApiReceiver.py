@@ -80,7 +80,6 @@ class GameReceiver():
                             self.max_seq = max(self.max_seq, metadata[SENDER_SEQ])
                             self.print_stats(metadata, payload)
                         
-                        deadline_current_seq = time.time() + ms_to_seconds(timeout_ms)
                         receive_buffer.add_packet(metadata[SENDER_SEQ], payload)
                         next_expect_seq = receive_buffer.get_next_expected_sequence()
                         self.send_ack(addr, next_expect_seq, metadata[SENDER_TIMESTAMP])
