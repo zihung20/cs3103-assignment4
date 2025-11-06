@@ -86,6 +86,7 @@ class GameReceiver():
             
                 if is_reliable and self.is_last_packet(metadata, receive_buffer):
                     print("Last packet received, stop receiving.")
+                    self.send_ack(addr, metadata[SENDER_SEQ] + 1, metadata[SENDER_TIMESTAMP], to_stop=True)
                     self.total_packet = metadata[SENDER_SEQ] + 1 # data collection
                     break
 
