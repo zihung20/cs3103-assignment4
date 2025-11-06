@@ -8,15 +8,16 @@ def main():
     gr = GameReceiver(HOST, PORT)
     buffer = []
     
-    data = gr.receive_data(lambda data: print("Receive the data: ", data), TIME_LIMIT_MS)
-    
-    if not data:
-        print("No more data received, exiting.")
+    while True:
+        data = gr.receive_data(lambda data: print("Receive the data: ", data), TIME_LIMIT_MS)
         
-    print("Data received using the api:\n")
-    for d in data:
-        print(f"{d.decode(MESSAGE_ENCODING)}")
-        buffer.append(d.decode(MESSAGE_ENCODING))
+        if not data:
+            print("No more data received, exiting.")
+            break
+
+        for d in data:
+            print(f"Data received using the api: \n{d.decode(MESSAGE_ENCODING)}")
+            buffer.append(d.decode(MESSAGE_ENCODING))
 
     # with open("received_messages.txt", "w", encoding=MESSAGE_ENCODING) as f:
     #     for line in buffer:

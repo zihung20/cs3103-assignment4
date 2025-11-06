@@ -17,10 +17,16 @@ def get_time_passed(timestamp):
 def checksum(packet:bytes) -> int:
     return zlib.crc32(packet)
 
+def generate_seq_no(start_seq: int, offset: int) -> int:
+    return (start_seq & 0xFF00) | (offset & 0x00FF)
+
+def get_offset_from_seq(seq_no: int) -> int:
+    return seq_no & 0x00FF
+
 def ms_to_seconds(ms: int) -> float:
     return ms / 1000.0
 
-def build_sender_packet(seq_no: int, payload, is_reliable: bool, is_last: bool):
+def build_sender_packet(start_seq: int, offset: int, payload, is_reliable: bool, is_last: bool):
     """channel (8 bits) | flags(8 bits)|
        seq (16 bits) | len(16 bits)|
        checksum(32 bits) | timestamp(32 bits)
@@ -32,7 +38,7 @@ def build_sender_packet(seq_no: int, payload, is_reliable: bool, is_last: bool):
     channel = (1 if is_reliable else 0) & 0xFF
     flags = (1 if is_last else 0) & 0xFF
     checksum_val = 0
-    seq_no = seq_no & TWO_BYTES_MASK
+    seq_no = generate_seq_no(start_seq, offset) & TWO_BYTES_MASK
     payload_size = len(payload) & TWO_BYTES_MASK
     timestamp_ms = get_current_timestamp()
 
@@ -64,7 +70,7 @@ def generate_ack(sequence:int, to_stop:bool, sender_timestamp:int) -> bytes:
     flags = (1 if to_stop else 0) & ONE_BYTES_MASK
     sequence = sequence & TWO_BYTES_MASK
     checksum_val = 0
-    
+
     temp_ack = struct.pack(RECEIVER_ACK_FORMAT, flags, sequence, checksum_val, sender_timestamp)
     checksum_val = checksum(temp_ack)
 
@@ -88,12 +94,11 @@ def generate_stats(jitters:list, throughputs:list, latency:list, packet_received
     average_latency = round(sum(latency) / len(latency), 4) if len(latency) != 0 else 0
     packet_delivery_ratio = round(packet_received / total_packet, 4) if total_packet != 0 else 0
 
-    first_time = min(time_stamps)
-
     max_jitter, min_jitter = round(max(jitters),4), round(min(jitters),4)
     max_throughtput, min_throughput = round(max(throughputs), 4), round(min(throughputs), 4)
     max_latency, min_latency = round(max(latency),4), round(min(latency),4)
-    t = [i - first_time for i in time_stamps]
+
+    t = [i - time_stamps[0] for i in time_stamps]
     rows = [[jitters[i], throughputs[i], latency[i], t[i]] for i in range(len(jitters))]
     
     try:

@@ -1,5 +1,5 @@
 from socket import socket, AF_INET, SOCK_DGRAM, gethostbyname
-from utils import parse_ack, check_ack_corrupt, build_sender_packet, get_time_passed, generate_sender_stats
+from utils import parse_ack, check_ack_corrupt, build_sender_packet, get_time_passed, get_offset_from_seq, generate_sender_stats
 from config import TIME_LIMIT_MS, WINDOW_SIZE, SENDER_RETRY_LIMIT, ACK_SEQUENCE, ACK_FLAGS, FOUR_BYTES_MASK, ACK_TIMESTAMP
 import select, time
 
@@ -21,11 +21,12 @@ class GameSender:
 
     def send_unreliable_packets(self, data: list[bytes]) -> None:
         for i, chunk in enumerate(data):
-            packet = build_sender_packet(i, chunk, False, True)
+            packet = build_sender_packet(0, i, chunk, False, True)
             self.receiver_socket.sendto(packet, self.receiver_address)
             time.sleep(0.005)  # slight delay to avoid overwhelming the network
 
     def send_reliable_packets(self, data: list[bytes]) -> None:
+        start_seq = 0
         left = 0
         right = 0
         sender_timeout_ms = TIME_LIMIT_MS / 20 # random guess
@@ -58,7 +59,7 @@ class GameSender:
             # send WINDOW_SIZE packets
             while right < left + WINDOW_SIZE and right < len(data):
                 current_chunk = data[right]
-                packet = build_sender_packet(right, current_chunk, True, right == len(data) - 1)
+                packet = build_sender_packet(start_seq, right, current_chunk, True, right == len(data) - 1)
                 self.receiver_socket.sendto(packet, self.receiver_address)
                 right += 1
                 count = 0
@@ -82,35 +83,35 @@ class GameSender:
 
                 ack_no = metadata[ACK_SEQUENCE]
                 flag = metadata[ACK_FLAGS]
+                ack_offset = get_offset_from_seq(ack_no)
 
-
-                if ack_no >= left:
-                    print(f"Received ACK for seq {ack_no}, sliding window")
+                if ack_offset >= left:
+                    print(f"Received ACK for seq {ack_offset}, sliding window")
                     rtts.append(self.get_rtt(metadata[ACK_TIMESTAMP]))
 
-                    ack_no = min(ack_no, len(data)) # defensive programming
-                    left = ack_no
+                    ack_no = min(ack_offset, len(data)) # defensive programming
+                    left = ack_offset
                     
                     if left == right: 
                         stop_timer()
 
-                if self.should_stop(flag, ack_no, left, right):
+                if self.should_stop(flag, ack_offset, left, right):
                     print("Received stop signal from receiver, ending transmission.")
                     break
             elif count < SENDER_RETRY_LIMIT:
                 print(f"Timeout occurred, resending packets from seq {left} to {right} count = {count}")
                 count += 1
-                self.resend_range(left, right, data)
+                self.resend_range(start_seq, left, right, data)
                 retick_timer()
             else:
                 print("Maximum resend attempts reached, ignore packet.")
                 left += 1
         generate_sender_stats(rtts)
     
-    def resend_range(self, left: int, right: int, data: list[bytes]) -> None:
+    def resend_range(self, start_seq: int, left: int, right: int, data: list[bytes]) -> None:
         for offset in range(left, right):
             current_chunk = data[offset]
-            packet = build_sender_packet(offset, current_chunk, True, offset == len(data) - 1)
+            packet = build_sender_packet(start_seq, offset, current_chunk, True, offset == len(data) - 1)
             self.receiver_socket.sendto(packet, self.receiver_address)
 
     def should_stop(self, flag: int, ack_offset: int, left: int, right: int) -> bool:
