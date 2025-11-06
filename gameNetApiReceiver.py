@@ -43,63 +43,59 @@ class GameReceiver():
 
     def receive_data(self, callback_fn, timeout_ms: int = 1000, idle_ms: int = 10000) -> list[bytes] | None:
         receive_buffer = GameNetBuffer(callback_fn)
-        count = 0
-        max_attempts = 5 # initial max attempts, more times allow to receive first packet
 
         last_activity = time.time()
         is_reliable = False
-        
-        # set idle timeout
-        # if exceed idle timeout without receiving any packets, stop receiving
+        deadline_current_seq = time.time() + idle_ms / 1000
+        count = 1
+
         while time.time() - last_activity < ms_to_seconds(idle_ms):
-            if count < max_attempts:
-                self.receiver_socket.settimeout(ms_to_seconds(timeout_ms))
+            remaining_time = deadline_current_seq - time.time()
+            print(f"Waiting for packet {receive_buffer.get_next_expected_sequence()} remaining time: {remaining_time:.2f} s")
+            timeout_setting = max(0.01, min(ms_to_seconds(timeout_ms), remaining_time))
+            self.receiver_socket.settimeout(timeout_setting)
+            
+            try:
+                packet, addr = self.receiver_socket.recvfrom(2048)
+                metadata, payload = parse_packet(packet)
+                self.packets_count += 1
+
+                print(f"Received packet from {addr}: {metadata}")
+
+                if metadata[SENDER_CHANNEL] == 1:
+                    is_reliable = True
                 
-                try:
-                    packet, addr = self.receiver_socket.recvfrom(2048)
-                    metadata, payload = parse_packet(packet)
-                    self.packets_count += 1
-
-                    print(f"Received packet from {addr}: {metadata}")
-
-                    if not is_reliable and metadata[SENDER_CHANNEL] == 1:
-                        max_attempts = 2
-                        is_reliable = True
-
-                    if max_attempts == 2 and not is_reliable:
-                        max_attempts = 1  # for unreliable channel
-                    
-                    if self.check(metadata, payload):
-                        if not is_reliable:
-                            callback_fn(payload)
+                if self.check(metadata, payload):
+                    if not is_reliable:
+                        callback_fn(payload)
+                        self.print_stats(metadata, payload)
+                        self.latest_seq = max(self.latest_seq, metadata[SENDER_SEQ])
+                        deadline_current_seq = time.time() + timeout_ms / 1000
+                        receive_buffer.add_packet(metadata[SENDER_SEQ], payload)
+                    else:
+                        if metadata[SENDER_SEQ] == receive_buffer.get_next_expected_sequence():
+                            deadline_current_seq = time.time() + timeout_ms / 1000
+                            self.actual_packet_count += 1
                             self.print_stats(metadata, payload)
-                            self.latest_seq = max(self.latest_seq, metadata[SENDER_SEQ])
-                        else:
-                            if not receive_buffer.exist(metadata[SENDER_SEQ]):
-                                self.actual_packet_count += 1
-                                self.print_stats(metadata, payload) # only print stat for packet haven't buffered
+                            deadline_current_seq = time.time() + timeout_ms / 1000
+                            count = 1
+                        receive_buffer.add_packet(metadata[SENDER_SEQ], payload)
+                        next_expect_seq = receive_buffer.get_next_expected_sequence()
+                        self.send_ack(addr, next_expect_seq, metadata[SENDER_TIMESTAMP])
+                                                
+                if is_reliable and self.is_last_packet(metadata, receive_buffer):
+                    print("Last packet received, stop receiving.")
+                    self.total_packet = metadata[SENDER_SEQ] + 1 # data collection
+                    break
 
-                            receive_buffer.add_packet(metadata[SENDER_SEQ], payload)
-                            next_expect_seq = receive_buffer.get_next_expected_sequence()
-                            self.send_ack(addr, next_expect_seq, metadata[SENDER_TIMESTAMP])                        
-
-                    if self.is_last_packet(metadata, receive_buffer):
-                        print("Last packet received, stop receiving.")
-                        self.total_packet = metadata[SENDER_SEQ] + 1 # data collection
-                        break
-
-                    count = 0
-                    last_activity = time.time()
-                except timeout:
+                last_activity = time.time()
+            except timeout:
+                if time.time() >= deadline_current_seq:
+                    print(f"Exceeded time, skip the packet.")
+                    receive_buffer.skip_current_offset()
+                    deadline_current_seq = time.time() + timeout_ms / 1000 * count
                     count += 1
-            else:
-                print(f"Exceeded maximum attempts ({max_attempts}), skip the packet.")
-                receive_buffer.skip_current_offset()
-                count = 0
 
-            if time.time() - last_activity >= ms_to_seconds(idle_ms):
-                print("Idle timeout reached during receiving")
-                break
 
         print("Total packets received:", self.packets_count)
         data_received = receive_buffer.get_ordered_packets()

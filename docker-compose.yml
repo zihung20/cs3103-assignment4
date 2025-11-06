@@ -9,7 +9,7 @@ services:
       - -lc
       - |
         tc qdisc replace dev eth0 root netem \
-          delay 100ms 10ms distribution normal \
+          delay 170ms 13ms distribution normal \
           loss 1% \
           reorder 0.1% 25%;
         python receiverExample.py ;
@@ -46,7 +46,7 @@ services:
       - -lc
       - |
         tc qdisc replace dev eth0 root netem \
-          delay 100ms 10ms distribution normal \
+          delay 170ms 13ms distribution normal \
           loss 1% \
           reorder 0.1% 25%;
         python senderExample.py ;

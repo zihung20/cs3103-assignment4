@@ -59,6 +59,8 @@ class GameSender:
             while right < left + WINDOW_SIZE and right < len(data):
                 current_chunk = data[right]
                 packet = build_sender_packet(right, current_chunk, True, right == len(data) - 1)
+                if right % 2 == 0:
+                    time.sleep(0.5)  # slight delay for even packets to reduce congestion
                 self.receiver_socket.sendto(packet, self.receiver_address)
                 right += 1
                 count = 0
