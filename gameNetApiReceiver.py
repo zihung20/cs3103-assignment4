@@ -82,6 +82,7 @@ class GameReceiver():
                         
                         receive_buffer.add_packet(metadata[SENDER_SEQ], payload)
                         next_expect_seq = receive_buffer.get_next_expected_sequence()
+                        print("Sending ACK for next expect seq:", next_expect_seq)
                         self.send_ack(addr, next_expect_seq, metadata[SENDER_TIMESTAMP])
             
                 if is_reliable and self.is_last_packet(metadata, receive_buffer):
