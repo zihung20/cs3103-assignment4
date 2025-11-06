@@ -19,10 +19,13 @@ class GameSender:
         else:
             self.send_unreliable_packets(data)
 
+    def udp_send(self, packet: bytes) -> None:
+        self.receiver_socket.sendto(packet, self.receiver_address)
+
     def send_unreliable_packets(self, data: list[bytes]) -> None:
         for i, chunk in enumerate(data):
             packet = build_sender_packet(i, chunk, False, True)
-            self.receiver_socket.sendto(packet, self.receiver_address)
+            self.udp_send(packet)
             time.sleep(0.01)
 
     def send_reliable_packets(self, data: list[bytes]) -> None:
@@ -61,7 +64,7 @@ class GameSender:
                 packet = build_sender_packet(right, current_chunk, True, right == len(data) - 1)
                 if right % 2 == 0:
                     time.sleep(0.5)  # slight delay for even packets to reduce congestion
-                self.receiver_socket.sendto(packet, self.receiver_address)
+                self.udp_send(packet)
                 right += 1
                 count = 0
 
@@ -85,7 +88,6 @@ class GameSender:
                 ack_no = metadata[ACK_SEQUENCE]
                 flag = metadata[ACK_FLAGS]
 
-
                 if ack_no >= left:
                     print(f"Received ACK for seq {ack_no}, sliding window")
                     rtts.append(self.get_rtt(metadata[ACK_TIMESTAMP]))
@@ -107,6 +109,7 @@ class GameSender:
             else:
                 print("Maximum resend attempts reached, ignore packet.")
                 left += 1
+                
         generate_sender_stats(rtts)
     
     def resend_range(self, left: int, right: int, data: list[bytes]) -> None:
@@ -123,5 +126,5 @@ class GameSender:
         return flag == 1
     
     def get_rtt(self, sender_timestamp: int) -> int:
-        rtt = get_time_passed(sender_timestamp) & FOUR_BYTES_MASK
+        rtt = get_time_passed(sender_timestamp)
         return rtt

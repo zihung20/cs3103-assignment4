@@ -129,7 +129,7 @@ def generate_stats(jitters:list, throughputs:list, latency:list, packet_received
     except FileNotFoundError as e:
         print(f"Parent directory missing: {e}")
 
-def generate_sender_stats(rtts:list):
+def generate_sender_stats(rtts: list):
     out_path = Path("statistics/sender_stats.csv")
         
     try:
