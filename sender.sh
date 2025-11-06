@@ -1,11 +1,7 @@
 #!/bin/bash
 
-# logfile="sender.log"
-
-# echo "Running sender-slow... output will be saved to $logfile"
-# docker compose run --rm sender-slow 2>&1 | tee "$logfile"
-
 logfile="sender.log"
+sender_type="sender-slow"
 
-echo "Running sender... output will be saved to $logfile"
-docker compose run --rm sender 2>&1 | tee "$logfile"
+echo "Running $sender_type... output will be saved to $logfile"
+docker compose run --rm $sender_type 2>&1 | tee "$logfile"
