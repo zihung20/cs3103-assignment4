@@ -12,7 +12,8 @@ def main():
     
     if not data:
         print("No more data received, exiting.")
-        
+        return
+    
     print("Data received using the api:\n")
     for d in data:
         print(f"{d.decode(MESSAGE_ENCODING)}")
