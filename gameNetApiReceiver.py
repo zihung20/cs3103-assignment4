@@ -99,6 +99,7 @@ class GameReceiver():
 
             if time.time() - last_activity >= ms_to_seconds(idle_ms):
                 print("Idle timeout reached during receiving")
+                break
 
         print("Total packets received:", self.packets_count)
         data_received = receive_buffer.get_ordered_packets()
