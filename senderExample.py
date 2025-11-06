@@ -8,16 +8,8 @@ def main():
     gs = GameSender(HOST, PORT)
     # tests = ['./test/longtext.txt', './test/chinese.txt', './test/shorttext.txt', './test/longtext.txt']
 
-    data = [
-        "hello",
-        "this is a test message",
-        "sending reliable packets using gameNetApiSender",
-        "packet loss simulation",
-        "final message",
-        "testing 1 2 3",
-        "another message to send",
-    ]
-    data = [d.encode(MESSAGE_ENCODING) for d in data]
+    
+    data = []
     with open("./test/output.txt", "r", encoding=MESSAGE_ENCODING) as f:
         long_text = f.read().splitlines()
         data.extend(long_text[i].encode(MESSAGE_ENCODING) for i in range(len(long_text)))

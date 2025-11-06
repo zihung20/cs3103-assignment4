@@ -84,10 +84,11 @@ class GameSender:
                 ack_no = metadata[ACK_SEQUENCE]
                 flag = metadata[ACK_FLAGS]
                 ack_offset = get_offset_from_seq(ack_no)
-                rtts.append(self.get_rtt(metadata[ACK_TIMESTAMP]))
 
                 if ack_offset >= left:
                     print(f"Received ACK for seq {ack_offset}, sliding window")
+                    rtts.append(self.get_rtt(metadata[ACK_TIMESTAMP]))
+
                     ack_no = min(ack_offset, len(data)) # defensive programming
                     left = ack_offset
                     
@@ -120,7 +121,6 @@ class GameSender:
 
         return flag == 1
     
-    def get_rtt(self, sender_timestamp: int) -> None:
+    def get_rtt(self, sender_timestamp: int) -> int:
         rtt = get_time_passed(sender_timestamp) & FOUR_BYTES_MASK
-        print(f"Received ACK, rtt={rtt} ms")
         return rtt
