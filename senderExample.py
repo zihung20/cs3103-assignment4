@@ -23,8 +23,13 @@ def main():
     # # await asyncio.sleep(0.01)
     # time.sleep(8)
 
-    print("Sending unreliable packets now...")
-    gs.send_data(data, True)
+    is_reliable = True
+    if is_reliable:
+        print("Sending reliable packets now...")
+    else:
+        print("Sending unreliable packets now...")
+        
+    gs.send_data(data, is_reliable)
 
 # asyncio.run(main())
 main()

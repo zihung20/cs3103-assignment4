@@ -28,6 +28,7 @@ class GameReceiver():
         self.latency = []
         self.total_packet = 0
         self.time_stamp = []
+        self.latest_seq = 0
 
     def check(self, metadata: tuple, payload: bytes):
         if not check_sender_packet(metadata, payload):
@@ -72,6 +73,7 @@ class GameReceiver():
                         if not is_reliable:
                             callback_fn(payload)
                             self.print_stats(metadata, payload)
+                            self.latest_seq = max(self.latest_seq, metadata[SENDER_SEQ])
                         else:
                             if not receive_buffer.exist(metadata[SENDER_SEQ]):
                                 self.actual_packet_count += 1
@@ -103,12 +105,20 @@ class GameReceiver():
         data_received = receive_buffer.get_ordered_packets()
         
         # data collection
-        if self.packets_count != 0:
+        if self.packets_count != 0 and is_reliable:
             generate_stats(jitters=self.jitters, 
                         throughputs=self.throughputs, 
                         latency=self.latency, 
                         packet_received=self.actual_packet_count, 
                         total_packet=self.total_packet,
+                        time_stamps=self.time_stamp)
+            
+        if self.packets_count != 0 and not is_reliable:
+            generate_stats(jitters=self.jitters, 
+                        throughputs=self.throughputs, 
+                        latency=self.latency, 
+                        packet_received=self.packets_count, 
+                        total_packet=self.latest_seq + 1,
                         time_stamps=self.time_stamp)
     
         self.packets_count = 0
