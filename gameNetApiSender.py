@@ -1,6 +1,6 @@
 from socket import socket, AF_INET, SOCK_DGRAM, gethostbyname
 from utils import parse_ack, check_ack_corrupt, build_sender_packet, get_time_passed, generate_sender_stats
-from config import TIME_LIMIT_MS, WINDOW_SIZE, SENDER_RETRY_LIMIT, ACK_SEQUENCE, ACK_FLAGS, FOUR_BYTES_MASK, ACK_TIMESTAMP
+from config import TIME_LIMIT_MS, WINDOW_SIZE, SENDER_RETRY_LIMIT, ACK_SEQUENCE, ACK_FLAGS, ACK_TIMESTAMP
 import select, time
 
 class GameSender:
