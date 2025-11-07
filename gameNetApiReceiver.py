@@ -41,7 +41,7 @@ class GameReceiver():
         ack_packet = generate_ack(ack_sequence, to_stop, sender_timestamp)
         self.receiver_socket.sendto(ack_packet, sender_address)
 
-    def receive_data(self, callback_fn, timeout_ms: int = 1000, idle_ms: int = 10000) -> list[bytes] | None:
+    def receive_data(self, callback_fn, timeout_ms: int = 1000, idle_ms: int = 5000) -> list[bytes] | None:
         receive_buffer = GameNetBuffer(callback_fn)
 
         last_activity = time.time()
@@ -76,12 +76,12 @@ class GameReceiver():
                         if metadata[SENDER_SEQ] == receive_buffer.get_next_expected_sequence():
                             deadline_current_seq = time.time() + timeout_ms / 1000
                             self.actual_packet_count += 1
-                            self.latest_seq = max(self.latest_seq, metadata[SENDER_SEQ])
                             self.print_stats(metadata, payload)
                             deadline_current_seq = time.time() + timeout_ms / 1000
                             count = 1
                         receive_buffer.add_packet(metadata[SENDER_SEQ], payload)
                         next_expect_seq = receive_buffer.get_next_expected_sequence()
+                        self.latest_seq = max(self.latest_seq, metadata[SENDER_SEQ])
                         self.send_ack(addr, next_expect_seq, metadata[SENDER_TIMESTAMP])
                                                 
                 if is_reliable and self.is_last_packet(metadata, receive_buffer):

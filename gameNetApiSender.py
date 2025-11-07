@@ -28,7 +28,7 @@ class GameSender:
     def send_reliable_packets(self, data: list[bytes]) -> None:
         left = 0
         right = 0
-        sender_timeout_ms = TIME_LIMIT_MS / 20 # random guess
+        sender_timeout_ms = TIME_LIMIT_MS / 5 # random guess
         rtts = []
 
         time_start = None
@@ -59,8 +59,6 @@ class GameSender:
             while right < left + WINDOW_SIZE and right < len(data):
                 current_chunk = data[right]
                 packet = build_sender_packet(right, current_chunk, True, right == len(data) - 1)
-                if right % 2 == 0:
-                    time.sleep(0.5)  # slight delay for even packets to reduce congestion
                 self.receiver_socket.sendto(packet, self.receiver_address)
                 right += 1
                 count = 0
@@ -124,4 +122,5 @@ class GameSender:
     
     def get_rtt(self, sender_timestamp: int) -> int:
         rtt = get_time_passed(sender_timestamp) & FOUR_BYTES_MASK
+        print("rtt ms:", rtt, sender_timestamp)
         return rtt

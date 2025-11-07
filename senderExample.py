@@ -14,7 +14,7 @@ def main():
         long_text = f.read().splitlines()
         data.extend(long_text[i].encode(MESSAGE_ENCODING) for i in range(len(long_text)))
 
-    is_reliable = True
+    is_reliable = False
     if is_reliable:
         print("Sending reliable packets now...")
     else:

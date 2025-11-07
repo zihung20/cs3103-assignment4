@@ -1,6 +1,6 @@
 # generate_text_file.py
 
-def generate_text_file(filename="./test/output.txt", min_size=10000):
+def generate_text_file(filename="./test/output.txt", min_size=50000):
     with open(filename, "w") as f:
         line_number = 1
         total_bytes = 0
