@@ -28,7 +28,8 @@ out/
 # Personal files
 AHTP-Assignment4-miniProject.pdf
 
-# statistics
+# others
 statistics/*.csv
 statistics/*.png
 statistics/*.txt
+*.mov
