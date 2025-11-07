@@ -26,10 +26,9 @@ out/
 .idea/
 
 # Personal files
-AHTP-Assignment4-miniProject.pdf
-
-# others
+*.pdf
 statistics/*.csv
 statistics/*.png
 statistics/*.txt
 *.mov
+*.zip
